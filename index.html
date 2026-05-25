@@ -1,0 +1,3342 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#FAF7F2">
+<link rel="manifest" href="manifest.json">
+<title>旅行日誌</title>
+<script>
+  (function() {
+    const savedTheme = localStorage.getItem('tj_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  })();
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;700&family=Noto+Sans+TC:wght@300;400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F0E8;
+  --bg2:#EDE6D8;
+  --bg3:#E2D8C8;
+  --surface:#FDFAF5;
+  --surface2:#F8F3EB;
+  --ink:#1A1510;
+  --ink2:#4A4238;
+  --ink3:#8C8070;
+  --ink4:#B8AE9C;
+  --accent:#6B4226;
+  --accent2:#9B6844;
+  --accent3:#C49A6C;
+  --gold:#B8882A;
+  --gold2:#E8C86A;
+  --green:#3A6248;
+  --red:#7A2E2E;
+  --border:#D4C8B4;
+  --border2:#BEB0A0;
+  --r:16px;
+  --r-sm:10px;
+  --r-xs:6px;
+  --shadow-sm:0 1px 4px rgba(26,21,16,.06);
+  --shadow:0 4px 20px rgba(26,21,16,.10);
+  --shadow-lg:0 8px 40px rgba(26,21,16,.14);
+
+  /* ── 統一字型尺規 ── */
+  --fs-display: 32px;   /* 頁面大標題 */
+  --fs-title:   20px;   /* 卡片/文章標題 */
+  --fs-subtitle:17px;   /* 副標題、小節標題 */
+  --fs-body:    15px;   /* 內文主字 */
+  --fs-ui:      14px;   /* 按鈕、標籤、欄位 */
+  --fs-meta:    13px;   /* 次要說明、metadata */
+  --fs-label:   12px;   /* 小標籤、chip */
+  --fs-caption: 11px;   /* 輔助說明、日期 */
+  --fs-tiny:    10px;   /* 分類標頭、badge */
+}
+
+[data-theme="dark"] {
+  --bg: #12100E;
+  --bg2: #1D1815;
+  --bg3: #2A231E;
+  --surface: #1E1A16;
+  --surface2: #28221D;
+  --ink: #F5F0E8;
+  --ink2: #D1C7B7;
+  --ink3: #A69986;
+  --ink4: #5E5345;
+  --accent: #E5C3A6;
+  --accent2: #C49A6C;
+  --accent3: #9B6844;
+  --gold: #E8C86A;
+  --gold2: #B8882A;
+  --green: #81C784;
+  --border: rgba(245, 240, 232, 0.15);
+  --border2: rgba(245, 240, 232, 0.25);
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.5);
+  --shadow: 0 4px 20px rgba(0,0,0,.6);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,.7);
+}
+
+[data-theme="dark"] .leaflet-bar a,
+[data-theme="dark"] .leaflet-container {
+  background-color: var(--surface) !important;
+  color: var(--ink) !important;
+  border-color: var(--border) !important;
+}
+[data-theme="dark"] .leaflet-bar a:hover {
+  background-color: var(--surface2) !important;
+}
+[data-theme="dark"] .leaflet-popup-content-wrapper,
+[data-theme="dark"] .leaflet-popup-tip {
+  background-color: var(--surface) !important;
+  color: var(--ink) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'Noto Sans TC',sans-serif;font-size:var(--fs-body);line-height:1.6;overflow:hidden}
+body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;position:relative}
+
+/* ── SCROLLBAR ── */
+#app{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:80px}
+#app::-webkit-scrollbar{display:none}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:480px;
+  background:rgba(245,240,232,.96);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  display:flex;z-index:100;
+  padding-bottom: env(safe-area-inset-bottom);
+  height: 64px;
+}
+.bnav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;
+  font-size:var(--fs-label);color:var(--ink3);cursor:pointer;
+  transition:color .2s;
+  font-weight:400;
+  letter-spacing:.02em;
+  padding-bottom: 4px; /* Shifting layout slightly upwards */
+}
+.bnav-item.active{color:var(--accent);font-weight:500}
+.bnav-item svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.6}
+
+/* ── PAGE TRANSITIONS ── */
+.page{display:none}
+.page.active{display:block;animation:pageIn .3s cubic-bezier(.25,.46,.45,.94)}
+@keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ══════════════════════════
+   HOME PAGE
+══════════════════════════ */
+.home-header{
+  padding:32px 22px 0;
+  display:flex;align-items:flex-start;justify-content:space-between;
+}
+.home-brand{}
+.home-title{
+  font-family:'Cormorant Garamond',serif;
+  font-size:var(--fs-display);font-weight:300;
+  color:var(--ink);line-height:1.1;
+  letter-spacing:-.01em;
+}
+.home-title em{font-style:italic;font-weight:400;color:var(--accent2);}
+.home-sub{font-size:var(--fs-caption);color:var(--ink4);margin-top:5px;font-weight:300;letter-spacing:.08em;}
+
+.add-fab{
+  width:44px;height:44px;border-radius:50%;
+  background:var(--accent);border:none;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;margin-top:2px;
+  box-shadow:0 4px 16px rgba(107,66,38,.35);
+  transition:transform .2s,box-shadow .2s;
+}
+.add-fab:active{transform:scale(.93);box-shadow:0 2px 8px rgba(107,66,38,.25)}
+.add-fab svg{width:20px;height:20px;stroke:#F5F0E8;stroke-width:2.2}
+
+/* stats strip */
+.stats-strip{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:12px;padding:20px 22px 0;
+  margin-top:20px;
+  margin-bottom:14px;
+}
+.stat-card{
+  background:var(--surface);
+  border-radius:var(--r-sm);
+  padding:14px 8px 12px;
+  text-align:center;
+  border:1px solid var(--border);
+  box-shadow:var(--shadow-sm);
+  position:relative;overflow:hidden;
+  transition:transform .15s;
+}
+.stat-card::before{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent3),var(--gold2));
+  opacity:0;transition:opacity .2s;
+}
+.stat-card:hover::before{opacity:1}
+.stat-n{font-family:'Cormorant Garamond',serif;font-size:var(--fs-title);font-weight:400;color:var(--ink);line-height:1;margin-bottom:4px;}
+.stat-l{font-size:var(--fs-caption);color:var(--ink4);letter-spacing:.06em;font-weight:300}
+
+/* section separator */
+.year-sep{
+  padding:24px 22px 10px;
+  display:flex;align-items:center;gap:12px;
+}
+.year-sep span{font-size:var(--fs-caption);font-weight:500;color:var(--ink3);letter-spacing:.18em;text-transform:uppercase;flex-shrink:0;}
+.year-sep::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* journal cards */
+.cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 22px 4px}
+.journal-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  overflow:hidden;cursor:pointer;
+  transition:transform .2s cubic-bezier(.25,.46,.45,.94),box-shadow .2s;
+  box-shadow:var(--shadow-sm);
+}
+.journal-card:active{transform:scale(.96);box-shadow:none}
+.journal-card:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
+.card-cover{
+  height:120px;background:var(--bg2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:38px;position:relative;overflow:hidden;
+}
+.card-cover::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(to bottom,transparent 50%,rgba(26,21,16,.18));
+}
+.card-cover-img{width:100%;height:100%;object-fit:cover}
+.star-mark{
+  position:absolute;top:9px;right:9px;z-index:1;
+  width:22px;height:22px;
+  background:rgba(184,136,42,.92);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,.2);
+}
+.card-body{padding:11px 13px 13px}
+.card-title{font-size:var(--fs-ui);font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px;letter-spacing:.01em;}
+.card-meta{font-size:var(--fs-caption);color:var(--ink4);display:flex;align-items:center;gap:4px;font-weight:300;}
+.card-meta svg{width:11px;height:11px;stroke:currentColor;stroke-width:2;flex-shrink:0}
+
+/* empty state */
+.empty-hero{
+  padding:48px 22px 32px;
+  text-align:center;
+}
+.empty-icon{
+  width:72px;height:72px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 20px;
+  font-size:28px;
+  box-shadow:var(--shadow-sm);
+}
+.empty-hero h3{font-family:'Cormorant Garamond',serif;font-size:var(--fs-subtitle);font-weight:400;color:var(--ink);margin-bottom:8px;}
+.empty-hero p{font-size:var(--fs-meta);color:var(--ink4);line-height:1.8;font-weight:300}
+.empty-cta{display:inline-flex;align-items:center;gap:6px;margin-top:20px;padding:11px 22px;background:var(--accent);color:#F5F0E8;border:none;border-radius:99px;font-size:var(--fs-ui);font-family:'Noto Sans TC',sans-serif;cursor:pointer;box-shadow:0 4px 16px rgba(107,66,38,.3);transition:all .2s;}
+.empty-cta:active{transform:scale(.97)}
+
+
+/* ══════════════════════════
+   UNIFIED PAGE HEADER
+══════════════════════════ */
+.page-brand{
+  padding:28px 22px 0;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  margin-bottom:4px;
+}
+.page-brand-left{}
+.brand-title{
+  font-family:'Cormorant Garamond',serif;
+  font-size:var(--fs-display);font-weight:300;
+  color:var(--ink);line-height:1.1;
+  letter-spacing:-.01em;
+}
+.brand-title em{font-style:italic;font-weight:400;color:var(--accent2);}
+.brand-sub{
+  font-size:var(--fs-caption);color:var(--ink4);
+  margin-top:5px;font-weight:300;letter-spacing:.06em;
+}
+.brand-action{flex-shrink:0;margin-top:4px}
+
+/* ══════════════════════════
+   FORM / NEW ENTRY
+══════════════════════════ */
+.page-header{
+  padding:22px 22px 0;
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:18px;
+}
+.page-header h2{font-family:'Cormorant Garamond',serif;font-size:var(--fs-display);font-weight:300;color:var(--ink);letter-spacing:-.01em;}
+.btn-primary{background:var(--accent);color:#F5F0E8;border:none;border-radius:99px;padding:10px 20px;font-size:var(--fs-ui);font-family:'Noto Sans TC',sans-serif;cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:400;letter-spacing:.04em;box-shadow:0 3px 12px rgba(107,66,38,.3);transition:all .2s;}
+.btn-primary:active{transform:scale(.96)}
+.btn-primary svg{width:15px;height:15px;stroke:#F5F0E8;stroke-width:2.2}
+.btn-ghost{background:transparent;color:var(--ink3);border:1px solid var(--border2);border-radius:99px;padding:10px 18px;font-size:var(--fs-ui);font-family:'Noto Sans TC',sans-serif;cursor:pointer;letter-spacing:.03em;transition:all .2s;}
+.btn-ghost:active{background:var(--bg2)}
+
+.form-scroll{padding:0 22px 24px;display:flex;flex-direction:column;gap:0}
+.form-section{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:18px;margin-bottom:12px;
+  box-shadow:var(--shadow-sm);
+}
+.form-section-title{
+  font-size:var(--fs-caption);font-weight:500;color:var(--ink4);
+  letter-spacing:.14em;margin-bottom:14px;text-transform:uppercase;
+  display:flex;align-items:center;gap:8px;
+}
+.form-section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.field label{font-size:var(--fs-meta);color:var(--ink3);display:block;margin-bottom:6px;letter-spacing:.02em}
+.field input,.field select,.field textarea{
+  width:100%;padding:11px 14px;font-size:var(--fs-ui);
+  border:1px solid var(--border);
+  border-radius:var(--r-sm);
+  background:var(--bg);color:var(--ink);
+  font-family:'Noto Sans TC',sans-serif;
+  appearance:none;-webkit-appearance:none;outline:none;
+  transition:border-color .2s,box-shadow .2s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  border-color:var(--accent3);
+  box-shadow:0 0 0 3px rgba(196,154,108,.12);
+}
+.field textarea{height:88px;resize:none;line-height:1.7}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* auto pills */
+.auto-pill-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:13px}
+.auto-pill{
+  font-size:var(--fs-caption);padding:5px 11px;border-radius:99px;
+  display:inline-flex;align-items:center;gap:4px;border:1px solid;
+  font-weight:300;letter-spacing:.02em;
+}
+.auto-pill.weather{background:#EBF5EF;color:#2A5C3A;border-color:#90C4A4}
+.auto-pill.coord{background:#EBF0F8;color:#2A3C5A;border-color:#90A8C8}
+.auto-pill.loading{background:var(--bg2);color:var(--ink4);border-color:var(--border);animation:shimmer 1.2s infinite alternate}
+@keyframes shimmer{from{opacity:.5}to{opacity:1}}
+.auto-pill svg{width:11px;height:11px;stroke:currentColor;stroke-width:2}
+
+/* chips */
+.field-subsection{
+  font-size:var(--fs-caption);font-weight:500;color:var(--accent2);
+  letter-spacing:.12em;text-transform:uppercase;
+  margin:16px 0 9px;padding-bottom:6px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;
+}
+.field-subsection:first-child{margin-top:0}
+.chip-group{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:6px}
+.chip{
+  font-size:var(--fs-label);padding:7px 14px;border-radius:99px;
+  border:1px solid var(--border);
+  background:var(--bg);color:var(--ink3);
+  cursor:pointer;transition:all .15s;user-select:none;
+  line-height:1.2;font-weight:300;
+}
+.chip:active{transform:scale(.94)}
+.chip.active{
+  background:var(--accent);color:#F5F0E8;
+  border-color:var(--accent);
+  font-weight:400;
+  box-shadow:0 2px 8px rgba(107,66,38,.25);
+}
+
+/* voice */
+.voice-wrap{position:relative}
+.voice-wrap textarea{padding-right:48px}
+.mic-btn{
+  position:absolute;bottom:10px;right:10px;
+  width:32px;height:32px;border-radius:50%;
+  border:1px solid var(--border2);background:var(--surface);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .2s;
+}
+.mic-btn svg{width:14px;height:14px;stroke:var(--ink3);stroke-width:1.8}
+.mic-btn.recording{background:#FEF0EC;border-color:#C06040;animation:micring 1s infinite}
+.mic-btn.recording svg{stroke:#C06040}
+@keyframes micring{0%,100%{box-shadow:0 0 0 0 rgba(192,96,64,.3)}50%{box-shadow:0 0 0 6px rgba(192,96,64,0)}}
+.voice-hint{font-size:var(--fs-caption);color:var(--ink4);margin-top:5px;min-height:16px;transition:color .2s;font-weight:300}
+.voice-hint.on{color:var(--accent2)}
+.voice-hint.done{color:var(--green)}
+
+/* photos */
+.photo-section{margin-bottom:13px}
+
+.album-input-row input{
+  flex:1;padding:11px 14px;font-size:var(--fs-meta);
+  border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--bg);color:var(--ink);
+  font-family:'Noto Sans TC',sans-serif;outline:none;transition:border-color .2s;
+}
+.album-input-row input:focus{border-color:var(--accent3)}
+.album-input-row button{
+  padding:11px 14px;font-size:var(--fs-meta);
+  border:1px solid var(--border2);border-radius:var(--r-sm);
+  background:var(--surface);color:var(--ink2);cursor:pointer;
+  white-space:nowrap;font-family:'Noto Sans TC',sans-serif;
+  transition:all .2s;
+}
+.album-input-row button:active{background:var(--bg2)}
+.album-divider{
+  text-align:center;font-size:11px;color:var(--ink4);
+  margin:10px 0;position:relative;font-weight:300;letter-spacing:.06em;
+}
+.album-divider::before,.album-divider::after{
+  content:'';position:absolute;top:50%;width:40%;height:1px;background:var(--border);
+}
+.album-divider::before{left:0}.album-divider::after{right:0}
+.upload-zone{
+  border:1.5px dashed var(--border2);border-radius:var(--r-sm);
+  padding:22px;text-align:center;cursor:pointer;
+  color:var(--ink4);font-size:var(--fs-meta);transition:all .2s;
+  background:var(--bg);
+}
+.upload-zone:hover{border-color:var(--accent3);color:var(--ink2)}
+.upload-zone svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.4;margin-bottom:7px;display:block;margin-left:auto;margin-right:auto}
+.upload-zone input{display:none}
+.photo-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:6px}
+.photo-thumb{
+  aspect-ratio:1;border-radius:8px;
+  background:var(--bg2);border:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;position:relative;cursor:pointer;
+  overflow:hidden;transition:all .15s;
+}
+.photo-thumb img{width:100%;height:100%;object-fit:cover}
+.photo-thumb.selected{border-color:var(--accent);border-width:2px}
+.photo-thumb .ck{
+  position:absolute;top:3px;right:3px;
+  width:15px;height:15px;border-radius:50%;
+  background:var(--accent);display:none;
+  align-items:center;justify-content:center;
+  box-shadow:0 1px 4px rgba(0,0,0,.2);
+}
+.photo-thumb.selected .ck{display:flex}
+.photo-thumb .ck svg{width:9px;height:9px;stroke:#fff;stroke-width:2.5}
+.photo-count{font-size:var(--fs-caption);color:var(--ink4);text-align:right;font-weight:300}
+
+/* ══════════════════════════
+   ARTICLE PAGE
+══════════════════════════ */
+.article-topbar{
+  padding:14px 18px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;
+  background:rgba(245,240,232,.92);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  z-index:10;
+}
+.article-topbar .back-btn{
+  display:flex;align-items:center;gap:5px;
+  font-size:var(--fs-ui);color:var(--ink2);cursor:pointer;
+  background:none;border:none;font-family:'Noto Sans TC',sans-serif;
+  font-weight:300;transition:color .15s;
+}
+.article-topbar .back-btn:hover{color:var(--accent)}
+.article-topbar .back-btn svg{width:16px;height:16px;stroke:currentColor;stroke-width:2}
+.tool-row{display:flex;gap:6px}
+.tool-btn{
+  padding:7px 12px;font-size:var(--fs-meta);
+  border:1px solid var(--border);border-radius:99px;
+  background:var(--surface);color:var(--ink3);
+  cursor:pointer;display:flex;align-items:center;gap:4px;
+  font-family:'Noto Sans TC',sans-serif;
+  transition:all .15s;letter-spacing:.02em;
+}
+.tool-btn:hover{border-color:var(--border2);color:var(--ink)}
+.tool-btn svg{width:12px;height:12px;stroke:currentColor;stroke-width:1.8}
+
+/* article content */
+.article-hero{padding:22px 22px 0}
+.article-kicker{
+  font-size:var(--fs-caption);color:var(--ink4);
+  letter-spacing:.18em;text-transform:uppercase;
+  margin-bottom:10px;font-weight:300;
+}
+.article-title{
+  font-family:'Cormorant Garamond',serif;
+  font-size:var(--fs-display);font-weight:400;
+  color:var(--ink);line-height:1.25;
+  margin-bottom:6px;letter-spacing:-.01em;
+}
+.article-title-en{
+  font-family:'Cormorant Garamond',serif;
+  font-style:italic;font-size:var(--fs-body);font-weight:300;
+  color:var(--ink4);margin-bottom:14px;
+}
+.meta-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.meta-pill{
+  font-size:var(--fs-caption);padding:5px 11px;border-radius:99px;
+  background:var(--bg2);color:var(--ink3);
+  border:1px solid var(--border);
+  display:inline-flex;align-items:center;gap:3px;
+  font-weight:300;
+}
+.meta-pill svg{width:10px;height:10px;stroke:currentColor;stroke-width:2}
+
+.mosaic-layout{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:18px}
+.mosaic-main{
+  border-radius:var(--r);background:var(--bg2);
+  height:170px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;font-size:52px;
+  position:relative;
+}
+.mosaic-main-blur{
+  position:absolute;inset:-12px;
+  background-size:cover;background-position:center;
+  filter:blur(18px) brightness(.6) saturate(1.1);
+  z-index:0;
+}
+.mosaic-main img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
+.mosaic-side{display:grid;gap:10px}
+.mosaic-sm{
+  border-radius:var(--r-sm);background:var(--bg2);
+  height:82px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;font-size:28px;
+  position:relative;
+}
+.mosaic-sm-blur{
+  position:absolute;inset:-8px;
+  background-size:cover;background-position:center;
+  filter:blur(14px) brightness(.6);
+  z-index:0;
+}
+.mosaic-sm img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
+
+.article-body{padding:0 22px}
+.article-p{
+  font-family:'Noto Serif TC',serif;
+  font-size:var(--fs-body);color:var(--ink2);
+  line-height:1.95;margin-bottom:16px;font-weight:300;
+  letter-spacing:.01em;
+}
+.article-h3{
+  font-family:'Cormorant Garamond',serif;
+  font-size:var(--fs-subtitle);font-weight:400;color:var(--ink);
+  margin-bottom:8px;margin-top:6px;
+  display:flex;align-items:center;gap:8px;
+}
+.article-h3 svg{width:14px;height:14px;stroke:var(--accent2);stroke-width:2;flex-shrink:0}
+
+/* favourite moment */
+.fav-moment{
+  margin:18px 0;padding:16px 18px;
+  background:linear-gradient(135deg,#FDF8EE,#FAF2DC);
+  border-radius:var(--r);
+  border:1px solid rgba(184,136,42,.25);
+  border-left:3px solid var(--gold);
+}
+.fav-moment-label{
+  font-size:var(--fs-caption);font-weight:500;color:var(--gold);
+  letter-spacing:.14em;text-transform:uppercase;
+  margin-bottom:8px;display:flex;align-items:center;gap:5px;
+}
+.fav-moment-label svg{width:12px;height:12px;stroke:var(--gold);stroke-width:2}
+.fav-moment-text{
+  font-family:'Cormorant Garamond',serif;
+  font-size:var(--fs-subtitle);font-weight:300;font-style:italic;
+  color:#7A6020;line-height:1.6;
+}
+
+.article-photos-row{display:flex;gap:10px;margin-bottom:18px;overflow-x:auto;padding-bottom:4px}
+.article-photos-row::-webkit-scrollbar{display:none}
+.article-photos-row .ph{
+  width:96px;height:72px;flex-shrink:0;
+  border-radius:var(--r-sm);background:var(--bg2);
+  overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:26px;
+}
+.article-photos-row .ph img{width:100%;height:100%;object-fit:contain}
+
+.article-info-bar{
+  display:flex;gap:6px;flex-wrap:wrap;
+  padding:14px 22px;border-top:1px solid var(--border);
+  background:var(--bg2);margin-top:8px;
+}
+
+.export-row{display:flex;gap:8px;padding:14px 22px 22px;flex-wrap:wrap}
+.export-btn{
+  flex:1;min-width:0;padding:12px 8px;font-size:var(--fs-meta);
+  border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--surface);color:var(--ink3);
+  cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;gap:5px;
+  font-family:'Noto Sans TC',sans-serif;
+  transition:all .2s;letter-spacing:.02em;
+}
+.export-btn:hover{border-color:var(--accent3);color:var(--ink);transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+.export-btn svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.4}
+.export-btn span{font-size:var(--fs-caption);color:var(--ink4)}
+
+/* ══════════════════════════
+   OVERVIEW PAGE
+══════════════════════════ */
+.overview-header{padding:0}
+.year-filter{display:flex;gap:7px;flex-wrap:wrap}
+.yr-btn{
+  font-size:var(--fs-meta);padding:7px 16px;border-radius:99px;
+  border:1px solid var(--border);background:transparent;
+  color:var(--ink3);cursor:pointer;transition:all .2s;
+  font-weight:300;letter-spacing:.04em;
+}
+.yr-btn.active{background:var(--accent);color:#F5F0E8;border-color:var(--accent);box-shadow:0 2px 8px rgba(107,66,38,.25)}
+
+.map-placeholder{
+  margin:0 22px 22px;background:var(--surface);
+  border-radius:var(--r);border:1px dashed var(--border2);
+  height:160px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:10px;color:var(--ink4);
+}
+.map-placeholder svg{width:32px;height:32px;stroke:var(--ink4);stroke-width:1.2}
+.map-placeholder p{font-size:var(--fs-meta);font-weight:300;letter-spacing:.04em}
+
+.timeline-section{padding:0 22px}
+.tl-year{
+  font-size:var(--fs-caption);font-weight:500;color:var(--ink4);
+  letter-spacing:.16em;margin-bottom:10px;
+  display:flex;align-items:center;gap:10px;
+  text-transform:uppercase;
+}
+.tl-year::after{content:'';flex:1;height:1px;background:var(--border)}
+.tl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:18px}
+.tl-card{
+  border:1px solid var(--border);border-radius:var(--r-sm);
+  overflow:hidden;cursor:pointer;
+  transition:all .2s;background:var(--surface);
+  box-shadow:var(--shadow-sm);
+}
+.tl-card:active{transform:scale(.96)}
+.tl-card:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
+.tl-cover{
+  height:60px;background:var(--bg2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;overflow:hidden;
+}
+.tl-cover img{width:100%;height:100%;object-fit:cover}
+.tl-info{padding:7px 9px 9px}
+.tl-name{font-size:var(--fs-meta);font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-date{font-size:var(--fs-caption);color:var(--ink4);font-weight:300}
+
+/* ══════════════════════════
+   YEAR SUMMARY
+══════════════════════════ */
+.year-sum-header{padding:0}
+.year-sum-card{
+  margin:0 22px 16px;
+  background:var(--surface);
+  border-radius:var(--r);border:1px solid var(--border);
+  padding:20px;box-shadow:var(--shadow-sm);
+  overflow:hidden;position:relative;
+}
+.year-sum-card::before{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--accent),var(--accent3),var(--gold));
+}
+.ys-headline{
+  font-family:'Cormorant Garamond',serif;
+  font-style:italic;font-size:var(--fs-subtitle);font-weight:300;
+  color:var(--accent2);margin-bottom:16px;line-height:1.55;
+}
+.ys-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:18px}
+.ys-stat{
+  background:var(--bg2);border-radius:var(--r-sm);
+  padding:14px;text-align:center;border:1px solid var(--border);
+}
+.ys-n{
+  font-family:'Cormorant Garamond',serif;
+  font-size:var(--fs-title);font-weight:400;color:var(--ink);line-height:1;margin-bottom:4px;
+}
+.ys-l{font-size:var(--fs-caption);color:var(--ink4);letter-spacing:.08em;font-weight:300}
+.ys-story{
+  font-family:'Noto Serif TC',serif;
+  font-size:var(--fs-body);color:var(--ink2);
+  line-height:1.9;font-weight:300;margin-bottom:18px;letter-spacing:.01em;
+}
+.ys-fav{
+  background:linear-gradient(135deg,#FDF8EE,#FAF2DC);
+  border-radius:var(--r-sm);padding:14px;
+  border:1px solid rgba(184,136,42,.2);
+}
+.ys-fav-label{font-size:var(--fs-caption);font-weight:500;color:var(--gold);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
+.ys-fav-card{display:flex;align-items:center;gap:12px}
+.ys-fav-ico{
+  width:44px;height:44px;border-radius:10px;
+  background:var(--bg2);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;
+}
+.ys-fav-ico img{width:100%;height:100%;object-fit:cover}
+.ys-fav-txt{font-size:var(--fs-meta);color:var(--ink2);line-height:1.7;font-weight:300}
+.ys-fav-txt b{color:var(--ink);font-weight:500;display:block;margin-bottom:2px;font-size:var(--fs-ui)}
+
+.share-section{padding:0 22px 24px}
+.share-label{
+  font-size:var(--fs-caption);font-weight:500;color:var(--ink4);
+  letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px;
+}
+.share-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.share-btn{
+  padding:14px 8px;font-size:var(--fs-meta);
+  border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--surface);color:var(--ink2);
+  cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;gap:7px;
+  font-family:'Noto Sans TC',sans-serif;
+  transition:all .2s;box-shadow:var(--shadow-sm);
+}
+.share-btn:hover{border-color:var(--accent3);transform:translateY(-2px);box-shadow:var(--shadow)}
+.share-btn:active{transform:scale(.96)}
+.share-btn svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.4}
+.share-btn span{font-size:var(--fs-caption);color:var(--ink4);letter-spacing:.04em}
+
+/* ══════════════════════════
+   AI LOADING
+══════════════════════════ */
+.ai-loading{padding:60px 22px;text-align:center}
+.ai-loading-ring{
+  width:52px;height:52px;margin:0 auto 20px;position:relative;
+}
+.ai-loading-ring::before,.ai-loading-ring::after{
+  content:'';position:absolute;inset:0;border-radius:50%;border:2px solid transparent;
+}
+.ai-loading-ring::before{border-top-color:var(--accent3);animation:spin 1.2s linear infinite}
+.ai-loading-ring::after{border-bottom-color:var(--gold);animation:spin .8s linear infinite reverse;inset:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* keep .ai-loading-icon for JS compatibility */
+.ai-loading-icon{
+  width:52px;height:52px;border-radius:50%;
+  border:2px solid var(--border);border-top-color:var(--accent);
+  animation:spin 1s linear infinite;margin:0 auto 18px;
+}
+.ai-loading p{
+  font-family:'Cormorant Garamond',serif;
+  font-size:var(--fs-subtitle);font-weight:300;color:var(--ink2);
+  font-style:italic;margin-bottom:6px;
+}
+.ai-loading small{font-size:var(--fs-caption);color:var(--ink4);font-weight:300;letter-spacing:.04em}
+
+/* ══════════════════════════
+   EMPTY STATE
+══════════════════════════ */
+.empty-state{padding:60px 22px;text-align:center}
+.empty-state svg{width:44px;height:44px;stroke:var(--ink4);stroke-width:1.2;margin:0 auto 18px;display:block}
+.empty-state h3{
+  font-family:'Cormorant Garamond',serif;
+  font-size:var(--fs-title);font-weight:400;color:var(--ink);margin-bottom:8px;
+}
+.empty-state p{font-size:var(--fs-meta);color:var(--ink4);line-height:1.8;font-weight:300}
+
+/* ══════════════════════════
+   TOAST
+══════════════════════════ */
+.toast{
+  position:fixed;bottom:92px;left:50%;
+  transform:translateX(-50%) translateY(16px);
+  background:var(--ink);color:#F5F0E8;
+  padding:10px 20px;border-radius:99px;
+  font-size:var(--fs-meta);opacity:0;transition:all .3s cubic-bezier(.25,.46,.45,.94);
+  pointer-events:none;white-space:nowrap;z-index:999;
+  letter-spacing:.03em;font-weight:300;
+  box-shadow:0 4px 20px rgba(26,21,16,.25);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── LIGHTBOX GALLERY ── */
+.lightbox {
+  display: none;
+  position: fixed;
+  z-index: 10000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(18, 16, 14, 0.96);
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+.lightbox.active {
+  display: flex;
+}
+.lightbox-content {
+  position: relative;
+  max-width: 90%;
+  max-height: 80%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.lightbox-content img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+  transition: transform 0.25s ease-out;
+}
+.lightbox-close {
+  position: absolute;
+  top: 20px;
+  right: 25px;
+  color: #F5F0E8;
+  font-size: 40px;
+  font-weight: 300;
+  cursor: pointer;
+  z-index: 10002;
+  transition: color 0.15s;
+}
+.lightbox-close:hover {
+  color: var(--accent3);
+}
+.lightbox-prev, .lightbox-next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #F5F0E8;
+  font-size: 36px;
+  padding: 16px;
+  cursor: pointer;
+  z-index: 10001;
+  user-select: none;
+  transition: color 0.15s;
+}
+.lightbox-prev { left: 10px; }
+.lightbox-next { right: 10px; }
+.lightbox-prev:hover, .lightbox-next:hover {
+  color: var(--accent3);
+}
+.lightbox-caption {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #D1C7B7;
+  font-size: var(--fs-meta);
+  text-align: center;
+  width: 80%;
+}
+
+/* ── VIEW TOGGLE ── */
+.view-toggle-row{display:flex;justify-content:flex-end;align-items:center;gap:6px;padding:0 22px 12px}
+.view-mode-btn{
+  width:32px;height:32px;border-radius:var(--r-xs);
+  border:1px solid var(--border);background:var(--surface);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .15s;color:var(--ink3);
+}
+.view-mode-btn.active{background:var(--accent);border-color:var(--accent);color:#F5F0E8}
+.view-mode-btn svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.8}
+
+/* ── CALENDAR ── */
+.cal-nav-row{display:flex;align-items:center;justify-content:space-between;padding:4px 22px 14px}
+.cal-nav{
+  background:var(--surface);border:1px solid var(--border);border-radius:50%;
+  width:34px;height:34px;font-size:20px;color:var(--ink2);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;
+}
+.cal-nav:hover{border-color:var(--accent3);color:var(--accent)}
+.cal-month-title{font-family:'Cormorant Garamond',serif;font-size:var(--fs-title);font-weight:400;color:var(--ink)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:0 16px 24px}
+.cal-dow{text-align:center;font-size:var(--fs-caption);color:var(--ink4);padding:5px 0;letter-spacing:.06em}
+.cal-cell{
+  aspect-ratio:1;border-radius:8px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+}
+.cal-cell.has-entry{
+  background:var(--surface);border:1px solid var(--border);
+  cursor:pointer;box-shadow:var(--shadow-sm);transition:all .15s;
+}
+.cal-cell.has-entry:active{transform:scale(.91)}
+.cal-cell.has-entry:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+.cal-cell.today{background:var(--bg2)}
+.cal-cell.today .cal-day{color:var(--accent);font-weight:600}
+.cal-day{font-size:10px;color:var(--ink3);line-height:1}
+.cal-cell.has-entry .cal-day{color:var(--ink2);font-weight:500}
+.cal-emoji{font-size:15px;line-height:1}
+.cal-cell.empty{opacity:0;pointer-events:none}
+
+/* ── COVER PHOTO PICK ── */
+.article-photos-row .ph{position:relative}
+.cover-pick-btn{
+  position:absolute;bottom:5px;left:5px;z-index:2;
+  background:rgba(26,21,16,.62);backdrop-filter:blur(4px);
+  border:none;border-radius:99px;
+  color:#F5F0E8;font-size:10px;padding:3px 7px;
+  cursor:pointer;transition:background .15s;line-height:1.4;letter-spacing:.02em;
+}
+.cover-pick-btn:hover{background:rgba(26,21,16,.88)}
+.cover-pick-btn.is-cover{background:var(--gold);color:#1A1510;font-weight:600}
+.mosaic-cover-btn{
+  position:absolute;bottom:8px;left:8px;z-index:2;
+  background:rgba(26,21,16,.62);backdrop-filter:blur(4px);
+  border:none;border-radius:99px;
+  color:#F5F0E8;font-size:11px;padding:4px 10px;
+  cursor:pointer;transition:background .15s;line-height:1.4;
+}
+.mosaic-cover-btn:hover{background:rgba(26,21,16,.88)}
+.mosaic-cover-btn.is-cover{background:var(--gold);color:#1A1510;font-weight:600}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- HOME PAGE -->
+  <div class="page active" id="page-home">
+    <div class="home-header">
+      <div class="home-brand">
+        <div class="home-title">旅行 <em>日誌</em></div>
+        <div class="home-sub" id="home-sub">記錄每一段美好旅程</div>
+      </div>
+      <button class="add-fab" onclick="goPage('new')">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="stats-strip" id="stats-row"></div>
+    
+    <!-- SEARCH & FILTER BAR -->
+    <div class="search-bar-container" style="padding: 18px 22px 12px;">
+      <div style="position:relative;margin-bottom:10px">
+        <input type="text" id="home-search" placeholder="搜尋地點、標題、內文或標籤..." oninput="handleSearch()" style="width:100%;padding:10px 14px 10px 38px;border:1px solid var(--border);border-radius:99px;font-size:var(--fs-ui);background:var(--surface);color:var(--ink);outline:none;font-family:inherit;transition:border-color .2s">
+        <svg viewBox="0 0 24 24" fill="none" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--ink3);stroke-width:2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" stroke-linecap="round"/></svg>
+        <span id="search-clear" onclick="clearSearch()" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--ink4);cursor:pointer;display:none;user-select:none">&times;</span>
+      </div>
+      <div class="tag-filters-row" id="tag-filters" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;-ms-overflow-style:none"></div>
+    </div>
+
+    <div id="home-content"></div>
+  </div>
+
+  <!-- NEW ENTRY PAGE -->
+  <div class="page" id="page-new">
+    <div class="page-brand" style="flex-direction:column;gap:0;padding-bottom:0">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;width:100%">
+        <div class="page-brand-left">
+          <div class="brand-title">新增 <em>遊記</em></div>
+          <div class="brand-sub">填入重點，AI 幫你寫成故事</div>
+        </div>
+        <button class="btn-ghost" onclick="cancelNewEntry()" style="flex-shrink:0;margin-top:6px">取消</button>
+      </div>
+      <button class="btn-primary" id="generate-btn" onclick="generateArticle()" style="width:100%;justify-content:center;margin-top:16px;padding:13px 20px">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        AI 產生遊記
+      </button>
+    </div>
+    <div class="form-scroll">
+      <!-- Basic Info -->
+      <div class="form-section">
+        <div class="form-section-title">基本資訊</div>
+        <div class="field">
+            <label>日期</label>
+            <input type="date" id="f-date" value="">
+          </div>
+        <div class="field">
+          <label>地點（城市 / 景點）</label>
+          <input type="text" id="f-location" placeholder="e.g. 京都、哲學之道、伏見稻荷" oninput="onLocationInput()">
+        </div>
+        <div class="auto-pill-row" id="auto-pills">
+          <span class="auto-pill weather loading">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v1M18.4 5.6l-.7.7M21 12h-1M18.4 18.4l-.7-.7M12 20v1M5.6 18.4l.7-.7M4 12H3M5.6 5.6l.7.7" stroke-linecap="round"/><circle cx="12" cy="12" r="4"/></svg>
+            天氣載入中...
+          </span>
+          <span class="auto-pill coord loading">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-linecap="round"/></svg>
+            座標載入中...
+          </span>
+        </div>
+      </div>
+
+      <!-- Details -->
+      <div class="form-section">
+        <div class="form-section-title">旅行詳情</div>
+
+        <div class="field-subsection">旅行類型</div>
+        <div class="chip-group" id="g-type" data-single="true">
+          <span class="chip active" onclick="pickChip(this)">✈️ 出國旅行</span>
+          <span class="chip" onclick="pickChip(this)">🗺️ 國內旅遊</span>
+          <span class="chip" onclick="pickChip(this)">📝 日常生活</span>
+          <span class="chip" onclick="pickChip(this)">🍜 美食探店</span>
+          <span class="chip" onclick="pickChip(this)">👨‍👩‍👧 家庭活動</span>
+          <span class="chip" onclick="pickChip(this)">🎉 朋友聚會</span>
+        </div>
+
+        <div class="field-subsection">區域屬性</div>
+        <div class="chip-group" id="g-area" data-single="true">
+          <span class="chip active" onclick="pickChip(this)">🏙 城市</span>
+          <span class="chip" onclick="pickChip(this)">🌾 鄉村</span>
+          <span class="chip" onclick="pickChip(this)">🌊 海邊</span>
+          <span class="chip" onclick="pickChip(this)">⛰️ 山區</span>
+          <span class="chip" onclick="pickChip(this)">🏝 島嶼</span>
+          <span class="chip" onclick="pickChip(this)">🏜 沙漠</span>
+          <span class="chip" onclick="pickChip(this)">🌲 森林</span>
+        </div>
+
+        <div class="field-subsection">季節</div>
+        <div class="chip-group" id="g-season" data-single="true">
+          <span class="chip" onclick="pickChip(this)">🌸 春</span>
+          <span class="chip" onclick="pickChip(this)">☀️ 夏</span>
+          <span class="chip" onclick="pickChip(this)">🍂 秋</span>
+          <span class="chip" onclick="pickChip(this)">❄️ 冬</span>
+        </div>
+
+        <div class="field-subsection">同行者</div>
+        <div class="chip-group" id="g-with" data-single="true">
+          <span class="chip active" onclick="pickChip(this)">🙋 獨自</span>
+          <span class="chip" onclick="pickChip(this)">💑 伴侶</span>
+          <span class="chip" onclick="pickChip(this)">👨‍👩‍👧 家人</span>
+          <span class="chip" onclick="pickChip(this)">👫 朋友</span>
+          <span class="chip" onclick="pickChip(this)">💼 同事</span>
+        </div>
+
+
+
+
+        <div class="field-subsection">住宿類型</div>
+        <div class="chip-group" id="g-stay" data-single="true">
+          <span class="chip active" onclick="pickChip(this)">🏨 飯店</span>
+          <span class="chip" onclick="pickChip(this)">🏡 民宿</span>
+          <span class="chip" onclick="pickChip(this)">🔑 Airbnb</span>
+          <span class="chip" onclick="pickChip(this)">🛏 青旅</span>
+          <span class="chip" onclick="pickChip(this)">⛺ 露營</span>
+          <span class="chip" onclick="pickChip(this)">🔄 當日來回</span>
+        </div>
+
+
+
+        <div class="field-subsection">旅行主題（可多選）</div>
+        <div class="chip-group" id="g-themes">
+          <span class="chip" onclick="pickChip(this)">🌸 賞花</span>
+          <span class="chip" onclick="pickChip(this)">🍜 美食</span>
+          <span class="chip" onclick="pickChip(this)">🏛 文化古蹟</span>
+          <span class="chip" onclick="pickChip(this)">🌿 自然風景</span>
+          <span class="chip" onclick="pickChip(this)">🛍 購物</span>
+          <span class="chip" onclick="pickChip(this)">♨️ 溫泉</span>
+          <span class="chip" onclick="pickChip(this)">🎊 節慶活動</span>
+          <span class="chip" onclick="pickChip(this)">🧗 運動冒險</span>
+          <span class="chip" onclick="pickChip(this)">🎨 藝術展覽</span>
+          <span class="chip" onclick="pickChip(this)">📷 攝影</span>
+          <span class="chip" onclick="pickChip(this)">🏖 海灘</span>
+          <span class="chip" onclick="pickChip(this)">🍶 品酒</span>
+          <span class="chip" onclick="pickChip(this)">🎵 音樂演出</span>
+          <span class="chip" onclick="pickChip(this)">🏟 體育賽事</span>
+        </div>
+
+        <div class="field-subsection">今日心情</div>
+        <div class="chip-group" id="g-mood" data-single="true">
+          <span class="chip active" onclick="pickChip(this)">☀️ 晴朗愉快</span>
+          <span class="chip" onclick="pickChip(this)">🥰 感動幸福</span>
+          <span class="chip" onclick="pickChip(this)">😌 平靜放鬆</span>
+          <span class="chip" onclick="pickChip(this)">😮 驚喜刺激</span>
+          <span class="chip" onclick="pickChip(this)">🌧 陰雨慵懶</span>
+        </div>
+
+
+
+
+        <div class="field-subsection">遊記風格</div>
+        <div class="chip-group" id="g-style" data-single="true">
+          <span class="chip active" onclick="pickChip(this)">📓 輕鬆日記</span>
+          <span class="chip" onclick="pickChip(this)">🖋 詩意散文</span>
+          <span class="chip" onclick="pickChip(this)">📋 簡潔流水帳</span>
+          <span class="chip" onclick="pickChip(this)">🎙 說故事體</span>
+          <span class="chip" onclick="pickChip(this)">📰 旅遊雜誌風</span>
+          <span class="chip" onclick="pickChip(this)">💌 寫給未來的信</span>
+          <span class="chip" onclick="pickChip(this)">🎬 電影分鏡感</span>
+          <span class="chip" onclick="pickChip(this)">🍃 慢活隨筆</span>
+        </div>
+
+        <div class="field-subsection">文章語調（可多選）</div>
+        <div class="chip-group" id="g-tone">
+          <span class="chip" onclick="pickChip(this)">🤪 幽默風趣</span>
+          <span class="chip" onclick="pickChip(this)">🧘 孤獨沉靜</span>
+          <span class="chip" onclick="pickChip(this)">☕ 文青感性</span>
+          <span class="chip" onclick="pickChip(this)">🦖 冒險刺激</span>
+          <span class="chip" onclick="pickChip(this)">📝 客觀寫實</span>
+          <span class="chip" onclick="pickChip(this)">🌸 浪漫唯美</span>
+        </div>
+        <div class="chip-group" id="g-lang" data-single="true" style="margin-top:8px">
+          <span class="chip active" onclick="pickChip(this)">🌐 中英混排</span>
+          <span class="chip" onclick="pickChip(this)">🇹🇼 全中文</span>
+          <span class="chip" onclick="pickChip(this)">🇬🇧 全英文</span>
+        </div>
+
+        <div class="field-subsection">自訂標籤</div>
+        <div class="field">
+          <input type="text" id="f-tags" placeholder="輸入標籤，空格分隔（e.g. 初雪 蜜月 跨年）">
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="form-section">
+        <div class="form-section-title">今天的重點</div>
+        <div class="field">
+          <label>用幾句話描述今天（語音或文字）</label>
+          <div class="voice-wrap">
+            <textarea id="f-notes" placeholder="e.g. 清晨哲學之道賞櫻，花開得很美，下午爬伏見稻荷有點累，晚上吃湯豆腐..."></textarea>
+            <button class="mic-btn" id="mic-btn" onclick="toggleVoice()" title="語音輸入">
+              <svg viewBox="0 0 24 24" fill="none"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3M9 22h6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <div class="voice-hint" id="voice-hint">點右側麥克風即可語音輸入</div>
+        </div>
+        <div class="field">
+          <label>最喜歡的一刻（可選）</label>
+          <input type="text" id="f-fav" placeholder="e.g. 花瓣飄入抹茶杯的那一秒">
+        </div>
+      </div>
+
+      <!-- Photos -->
+      <div class="form-section">
+        <div class="form-section-title">照片</div>
+        <div class="photo-section">
+          <label class="upload-zone" for="photo-upload">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            點擊或拖曳上傳照片（最多 15 張）
+            <input type="file" id="photo-upload" accept="image/*" multiple onchange="handlePhotoUpload(this)">
+          </label>
+          <div style="font-size:var(--fs-caption);color:var(--ink4);margin-top:8px;line-height:1.7;font-weight:300">
+            💡 從 Google 相簿下載照片後，直接拖曳上傳即可。
+            未來版本將支援 Google Photos API 直接連結。
+          </div>
+        </div>
+        <div class="photo-grid" id="photo-grid"></div>
+        <div class="photo-count" id="photo-count" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARTICLE PAGE -->
+  <div class="page" id="page-article">
+    <div class="article-topbar">
+      <button class="back-btn" onclick="goPage('home')">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        返回
+      </button>
+      <div class="tool-row" id="article-tools">
+        <button class="tool-btn" onclick="regenerate()">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M1 4v6h6M23 20v-6h-6" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 9A9 9 0 0 0 5.2 5.2M3.5 15A9 9 0 0 0 18.8 18.8" stroke-linecap="round"/></svg>
+          重新生成
+        </button>
+        <button class="tool-btn" onclick="exportHTML()">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          匯出
+        </button>
+        <button class="tool-btn" onclick="deleteEntry()" style="color:var(--red);border-color:var(--red)">
+          <svg viewBox="0 0 24 24" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          刪除
+        </button>
+      </div>
+    </div>
+    <div id="article-content"></div>
+    <div class="export-row">
+      <button class="export-btn" onclick="exportHTML()">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-linecap="round" stroke-linejoin="round"/><polyline points="14 2 14 8 20 8" stroke-linecap="round"/></svg>
+        <span>HTML 檔案</span>
+      </button>
+      <button class="export-btn" onclick="shareIG()">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" stroke-linecap="round"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" stroke-linecap="round"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
+        <span>IG 圖卡</span>
+      </button>
+      <button class="export-btn" onclick="shareThread()">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5z" stroke-linecap="round"/></svg>
+        <span>Threads</span>
+      </button>
+      <button class="export-btn" onclick="shareFB()">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Facebook</span>
+      </button>
+      <button class="export-btn" onclick="shareLINE()">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>LINE</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- OVERVIEW PAGE -->
+  <div class="page" id="page-overview">
+    <div class="page-brand">
+      <div class="page-brand-left">
+        <div class="brand-title">旅行 <em>總覽</em></div>
+        <div class="brand-sub">你走過的每一個地方</div>
+      </div>
+    </div>
+    <div style="padding:14px 22px 0">
+      <div class="year-filter" id="year-filter"></div>
+    </div>
+    <div style="margin:16px 22px 0;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);height:220px;position:relative">
+      <div id="travel-map" style="width:100%;height:100%"></div>
+      <div id="map-empty" style="display:none;position:absolute;inset:0;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--ink4)">
+        <svg viewBox="0 0 24 24" fill="none" style="width:28px;height:28px;stroke:currentColor;stroke-width:1.2"><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3V7z" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 4v13M15 7v13" stroke-linecap="round"/></svg>
+        <p style="font-size:var(--fs-meta);font-weight:300">新增遊記後地圖會自動標記</p>
+      </div>
+    </div>
+    <div class="timeline-section" id="timeline-content"></div>
+  </div>
+
+  <!-- YEAR SUMMARY PAGE -->
+  <div class="page" id="page-year">
+    <div class="page-brand">
+      <div class="page-brand-left">
+        <div class="brand-title" id="year-sum-title">年度 <em>回顧</em></div>
+        <div class="brand-sub" id="year-sum-sub">AI 為你整理這一年的旅行故事</div>
+      </div>
+    </div>
+    <div id="year-sum-content"></div>
+    <div id="year-cal"></div>
+  </div>
+
+  <!-- SETTINGS PAGE -->
+  <div class="page" id="page-settings">
+    <div class="page-brand">
+      <div class="page-brand-left">
+        <div class="brand-title">app <em>設定</em></div>
+        <div class="brand-sub">API Key · 資料管理 · 關於</div>
+      </div>
+    </div>
+    <div class="form-scroll">
+      <div class="form-section">
+        <div class="form-section-title">AI 遊記生成</div>
+        <div class="field">
+          <label>Gemini API Key</label>
+          <div style="position:relative">
+            <input type="password" id="setting-apikey" placeholder="貼上你的 Gemini API Key..." style="padding-right:80px">
+            <button onclick="saveApiKey()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);padding:4px 10px;font-size:11px;border:1px solid var(--border2);border-radius:6px;background:var(--bg);color:var(--ink2);cursor:pointer;font-family:'Noto Sans TC',sans-serif">儲存</button>
+          </div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:6px;line-height:1.6">
+            免費申請：前往 <span style="color:var(--accent);cursor:pointer;text-decoration:underline" onclick="showToast('請在瀏覽器搜尋 Google AI Studio，免費申請即可')">Google AI Studio</span> → 建立 API Key → 貼上儲存
+          </div>
+        </div>
+        <div id="api-status"></div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">介面主題</div>
+        <div class="chip-group" id="g-theme" data-single="true">
+          <span class="chip active" onclick="setTheme('light')">☀️ 淺色模式</span>
+          <span class="chip" onclick="setTheme('dark')">🌙 深色模式</span>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">AI 功能說明</div>
+        <div style="font-size:13px;color:var(--ink2);line-height:1.8">
+          <div style="display:flex;gap:10px;margin-bottom:10px;align-items:flex-start"><span style="font-size:16px;flex-shrink:0">✨</span><span>設定 API Key 後，輸入地點與重點，AI 自動生成約 250 字以內、段落分明的精簡旅遊日記，含景點介紹與個人感受。</span></div>
+          <div style="display:flex;gap:10px;margin-bottom:10px;align-items:flex-start"><span style="font-size:16px;flex-shrink:0">📷</span><span>上傳照片後，AI 會辨識照片內容並融入遊記描述。</span></div>
+          <div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:16px;flex-shrink:0">🆓</span><span>Gemini 2.5 Flash-Lite 每天免費額度個人使用完全足夠。</span></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">資料管理</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn-ghost" style="width:100%;text-align:left;padding:12px 14px;display:flex;align-items:center;gap:8px" onclick="exportAllData()">
+            <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px;stroke:currentColor;stroke-width:1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            匯出所有遊記備份 (JSON)
+          </button>
+          <button class="btn-ghost" style="width:100%;text-align:left;padding:12px 14px;display:flex;align-items:center;gap:8px" onclick="triggerJsonImport()">
+            <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px;stroke:currentColor;stroke-width:1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M12 5v14M5 12h14" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            匯入備份資料 (JSON)
+          </button>
+          <input type="file" id="json-import-input" accept=".json" style="display:none" onchange="importJsonData(this)">
+          <button class="btn-ghost" style="width:100%;text-align:left;padding:12px 14px;display:flex;align-items:center;gap:8px" onclick="triggerHtmlImport()">
+            <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px;stroke:currentColor;stroke-width:1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            匯入單篇遊記 HTML 檔案
+          </button>
+          <input type="file" id="html-import-input" accept=".html" style="display:none" onchange="importHtmlEntry(this)">
+          <button class="btn-ghost" style="width:100%;text-align:left;padding:12px 14px;display:flex;align-items:center;gap:8px;color:var(--red);border-color:var(--red)" onclick="clearAllData()">
+            <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px;stroke:currentColor;stroke-width:1.8"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            清除所有資料
+          </button>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">關於</div>
+        <div style="font-size:12px;color:var(--ink3);line-height:1.8">旅行日誌 v1.0<br>資料存於本機瀏覽器，不會上傳伺服器。<br>照片以 base64 格式存於裝置本地。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <div class="bnav-item active" id="nav-home" onclick="goPage('home')">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke-linecap="round" stroke-linejoin="round"/><polyline points="9 22 9 12 15 12 15 22" stroke-linecap="round"/></svg>
+    首頁
+  </div>
+  <div class="bnav-item" id="nav-new" onclick="goPage('new')">
+    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8" stroke-linecap="round"/></svg>
+    新增
+  </div>
+  <div class="bnav-item" id="nav-overview" onclick="goPage('overview')">
+    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke-linecap="round"/></svg>
+    總覽
+  </div>
+  <div class="bnav-item" id="nav-year" onclick="goPage('year')">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    年度
+  </div>
+  <div class="bnav-item" id="nav-settings" onclick="goPage('settings')">
+    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    設定
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<!-- LIGHTBOX MODAL -->
+<div class="lightbox" id="lightbox-modal">
+  <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+  <div class="lightbox-prev" onclick="changeLightboxPhoto(-1)">&#10094;</div>
+  <div class="lightbox-next" onclick="changeLightboxPhoto(1)">&#10095;</div>
+  <div class="lightbox-content">
+    <img id="lightbox-img" src="" alt="">
+  </div>
+  <div class="lightbox-caption" id="lightbox-caption"></div>
+</div>
+
+<!-- IG CARD MODAL -->
+<div class="lightbox" id="ig-card-modal">
+  <span class="lightbox-close" onclick="closeIgCard()">&times;</span>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:16px;max-width:90%">
+    <div style="background:#000;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg)">
+      <canvas id="ig-card-canvas" width="1080" height="1920" style="width:300px;height:533px;display:block"></canvas>
+    </div>
+    <div style="display:flex;gap:12px;width:100%">
+      <button class="empty-cta" onclick="downloadIgCard()" style="flex:1;justify-content:center">
+        <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px;stroke:currentColor;stroke-width:2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        下載圖片
+      </button>
+      <button class="btn-ghost" onclick="closeIgCard()" style="background:var(--surface);color:var(--ink2);border-color:var(--border);padding:11px 22px;border-radius:99px;font-size:var(--fs-ui);font-family:'Noto Sans TC',sans-serif;cursor:pointer">
+        關閉
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+let GEMINI_KEY = localStorage.getItem('tj_apikey') || '';
+let travelMap = null;
+let mapMarkers = [];
+let travelRouteLine = null;
+let entries = [];
+let currentEntry = null;
+let searchQuery = '';
+let selectedFilterTag = '';
+let uploadedPhotos = [];
+let selectedPhotos = [];
+let recognition = null;
+let isRecording = false;
+let locationTimer = null;
+let editingEntryId = null;
+let homeView = 'cards';
+let calendarYear = new Date().getFullYear();
+let calendarMonth = new Date().getMonth();
+
+const DB_NAME = 'tj_database';
+const DB_VERSION = 1;
+const STORE_NAME = 'tj_entries_store';
+let db = null;
+
+function initDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = e => reject(e.target.error);
+    request.onsuccess = e => {
+      db = e.target.result;
+      resolve(db);
+    };
+    request.onupgradeneeded = e => {
+      const database = e.target.result;
+      if (!database.objectStoreNames.contains(STORE_NAME)) {
+        database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+  });
+}
+
+function getEntriesFromDB() {
+  return new Promise((resolve, reject) => {
+    if (!db) return resolve([]);
+    const transaction = db.transaction([STORE_NAME], 'readonly');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = e => reject(e.target.error);
+  });
+}
+
+function saveEntryToDB(entry) {
+  return new Promise((resolve, reject) => {
+    if (!db) return reject(new Error('Database not initialized'));
+    const transaction = db.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.put(entry);
+    request.onsuccess = () => resolve();
+    request.onerror = e => reject(e.target.error);
+  });
+}
+
+function deleteEntryFromDB(id) {
+  return new Promise((resolve, reject) => {
+    if (!db) return reject(new Error('Database not initialized'));
+    const transaction = db.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.delete(id);
+    request.onsuccess = () => resolve();
+    request.onerror = e => reject(e.target.error);
+  });
+}
+
+function clearAllEntriesFromDB() {
+  return new Promise((resolve, reject) => {
+    if (!db) return reject(new Error('Database not initialized'));
+    const transaction = db.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.clear();
+    request.onsuccess = () => resolve();
+    request.onerror = e => reject(e.target.error);
+  });
+}
+
+function compressImage(file, maxWidth = 1200, maxHeight = 1200, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function save(entryToSave) {
+  if (db) {
+    try {
+      if (entryToSave) {
+        await saveEntryToDB(entryToSave);
+      } else {
+        for (const e of entries) {
+          await saveEntryToDB(e);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to save to database:', err);
+    }
+  } else {
+    localStorage.setItem('tj_entries', JSON.stringify(entries));
+  }
+}
+
+async function encodeShareData(data) {
+  const jsonStr = JSON.stringify(data);
+  try {
+    if (typeof CompressionStream !== 'undefined') {
+      const stream = new Blob([jsonStr]).stream();
+      const compressedStream = stream.pipeThrough(new CompressionStream('gzip'));
+      const response = new Response(compressedStream);
+      const blob = await response.blob();
+      const buffer = await blob.arrayBuffer();
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return 'gz:' + btoa(binary);
+    }
+  } catch (err) {
+    console.warn('Compression failed, falling back to raw base64:', err);
+  }
+  return 'raw:' + btoa(unescape(encodeURIComponent(jsonStr)));
+}
+
+async function decodeShareData(str) {
+  if (str.startsWith('gz:')) {
+    const rawB64 = str.substring(3);
+    const binary = atob(rawB64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const stream = new Blob([bytes]).stream();
+    const decompressedStream = stream.pipeThrough(new DecompressionStream('gzip'));
+    const response = new Response(decompressedStream);
+    const text = await response.text();
+    return JSON.parse(text);
+  } else if (str.startsWith('raw:')) {
+    const rawB64 = str.substring(4);
+    return JSON.parse(decodeURIComponent(escape(atob(rawB64))));
+  } else {
+    return JSON.parse(decodeURIComponent(escape(atob(str))));
+  }
+}
+
+async function importSharedEntry() {
+  if (!currentEntry) return;
+  const entryToSave = { ...currentEntry };
+  delete entryToSave.isSharedView;
+  entryToSave.id = Date.now().toString();
+  
+  const exists = entries.some(x => x.location === entryToSave.location && x.date === entryToSave.date);
+  if (exists) {
+    if (!confirm('您的日誌中已存在相同日期與地點的遊記，是否仍要儲存？')) {
+      return;
+    }
+  }
+  
+  entries.push(entryToSave);
+  await save(entryToSave);
+  showToast('✅ 已成功儲存至您的日誌中！');
+  goPage('home');
+}
+
+function showToast(msg, dur=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function goPage(name) {
+  if (name !== 'article' && window.location.hash.startsWith('#share=')) {
+    window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+  }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const nav = document.getElementById('nav-' + name);
+  if (nav) nav.classList.add('active');
+  if (name === 'home') renderHome();
+  if (name === 'new' && !editingEntryId) initNewForm();
+  if (name !== 'new') editingEntryId = null;
+  if (name === 'overview') { renderOverview(); setTimeout(()=>{ if(travelMap) travelMap.invalidateSize(); },150); }
+  if (name === 'year') renderYearSummary();
+  if (name === 'settings') initSettings();
+  document.getElementById('app').scrollTop = 0;
+}
+
+// ── HOME ──
+function renderHome() {
+  const sub = document.getElementById('home-sub');
+  const total = entries.length;
+  const cities = new Set(entries.map(e => e.location?.split('、')[0]||e.location||'')).size;
+  const countries = new Set(entries.filter(e=>e.type==='✈️ 出國旅行'||e.type==='出國旅行').map(e=>e.location?.split('、')[0]||'')).size;
+  const favCount = entries.filter(e=>e.fav).length;
+  sub.textContent = total ? `${total} 篇遊記 · ${cities} 個城市` : '記錄每一段美好旅程';
+
+  document.getElementById('stats-row').innerHTML = [
+    {n: total, l:'篇遊記'},
+    {n: cities||0, l:'城市'},
+    {n: countries||0, l:'出國'},
+    {n: favCount||0, l:'精彩時刻'}
+  ].map(s=>`<div class="stat-card"><div class="stat-n">${s.n}</div><div class="stat-l">${s.l}</div></div>`).join('');
+
+  // Render dynamic tags row
+  renderTagFilters();
+
+  if (!entries.length) {
+    document.getElementById('home-content').innerHTML = `
+      <div class="empty-hero">
+        <div class="empty-icon">✈️</div>
+        <h3>開始你的第一篇遊記</h3>
+        <p>記錄每一段美好的旅行故事<br>照片、文字、心情，一次保存</p>
+        <button class="empty-cta" onclick="goPage('new')">
+          <svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px;stroke:#F5F0E8;stroke-width:2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+          新增第一篇遊記
+        </button>
+      </div>`;
+    return;
+  }
+
+  // Filter entries
+  let filteredEntries = entries;
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase().trim();
+    filteredEntries = filteredEntries.filter(e => 
+      (e.title && e.title.toLowerCase().includes(q)) ||
+      (e.location && e.location.toLowerCase().includes(q)) ||
+      (e.articleBody && e.articleBody.toLowerCase().includes(q)) ||
+      (e.articleHTML && e.articleHTML.toLowerCase().includes(q)) ||
+      (e.tags && e.tags.toLowerCase().includes(q)) ||
+      (e.date && e.date.includes(q))
+    );
+  }
+  if (selectedFilterTag) {
+    const tag = selectedFilterTag.toLowerCase().trim();
+    filteredEntries = filteredEntries.filter(e => 
+      e.tags && e.tags.toLowerCase().split(/\s+/).includes(tag)
+    );
+  }
+
+  if (!filteredEntries.length) {
+    document.getElementById('home-content').innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" style="width:40px;height:40px;stroke:var(--ink4);stroke-width:1.5;margin:0 auto 18px;display:block"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" stroke-linecap="round"/></svg>
+        <h3>找不到相符的遊記</h3>
+        <p>試試其他關鍵字或標籤篩選</p>
+      </div>`;
+    return;
+  }
+
+  const byYear = {};
+  filteredEntries.slice().reverse().forEach(e => {
+    const yr = e.date?.slice(0,4) || '未知';
+    if (!byYear[yr]) byYear[yr] = [];
+    byYear[yr].push(e);
+  });
+
+  let html = '';
+  Object.keys(byYear).sort((a,b)=>b-a).forEach(yr => {
+    html += `<div class="year-sep"><span>${yr}</span></div>`;
+    html += `<div class="cards-grid">`;
+    byYear[yr].forEach(e => {
+      const emoji = coverEmoji(e);
+      const star = e.fav ? `<div class="star-mark">★</div>` : '';
+      const coverBg = coverBgColor(e);
+      const coverIdx = Math.min(e.coverPhotoIndex || 0, (e.photos?.length || 1) - 1);
+      const coverSrc = e.photos?.[coverIdx];
+      const imgHtml = (coverSrc?.startsWith('data:'))
+        ? `<img class="card-cover-img" src="${coverSrc}" alt="">`
+        : `<span style="font-size:36px">${emoji}</span>`;
+      html += `<div class="journal-card" onclick="openEntry('${e.id}')">
+        <div class="card-cover" style="background:${coverBg}">${imgHtml}${star}</div>
+        <div class="card-body">
+          <div class="card-title">${e.title || e.location || '未命名遊記'}</div>
+          <div class="card-meta">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke-linecap="round"/><circle cx="12" cy="10" r="3"/></svg>
+            ${e.location||'—'} · ${formatDate(e.date)}
+          </div>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  document.getElementById('home-content').innerHTML = html;
+}
+
+function coverEmoji(e) {
+  const map = {'✈️ 出國旅行':'✈️','出國旅行':'✈️','🍜 美食探店':'🍜','美食探店':'🍜','👨‍👩‍👧 家庭活動':'👨‍👩‍👧','家庭活動':'👨‍👩‍👧','🎉 朋友聚會':'🎉','朋友聚會':'🎉','📝 日常生活':'📝','日常生活':'📝','🗺️ 國內旅遊':'🗺️','國內旅遊':'🗺️'};
+  return map[e.type] || '📍';
+}
+function coverBgColor(e) {
+  const map = {'出國旅行':'#E8EEF8','美食探店':'#FAF0E8','家庭活動':'#EEF8EE','朋友聚會':'#F8EEF8','日常生活':'#F5F2EC','國內旅遊':'#EEF5F0'};
+  const t = (e.type||'').replace(/^[^\s]+\s/,'');
+  return map[t] || map[e.type] || '#EDE6D8';
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  const p = d.split('-');
+  return `${p[1]}/${p[2]}`;
+}
+
+// ── NEW FORM ──
+function initNewForm() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('f-date').value = today;
+  document.getElementById('f-location').value = '';
+  document.getElementById('f-notes').value = '';
+  document.getElementById('f-fav').value = '';
+  document.getElementById('f-tags').value = '';
+  const elDaynum = document.getElementById('f-daynum');
+  if (elDaynum) elDaynum.value = '';
+  const elDaytotal = document.getElementById('f-daytotal');
+  if (elDaytotal) elDaytotal.value = '';
+  document.getElementById('photo-grid').innerHTML = '';
+  document.getElementById('photo-count').style.display = 'none';
+  // reset all chip groups to their first .active default
+  document.querySelectorAll('.chip-group').forEach(grp => {
+    grp.querySelectorAll('.chip').forEach((c,i) => c.classList.toggle('active', c.dataset.default==='true'));
+  });
+  // restore defaults manually
+  const defaults = {
+    'g-type':0,'g-area':0,'g-with':0,
+    'g-stay':0,'g-mood':0,'g-style':0,'g-lang':0
+  };
+  Object.entries(defaults).forEach(([id,idx]) => {
+    const grp = document.getElementById(id);
+    if(!grp) return;
+    grp.querySelectorAll('.chip').forEach((c,i) => c.classList.toggle('active', i===idx));
+  });
+  document.querySelectorAll('#g-themes .chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#g-tone .chip').forEach(c => c.classList.remove('active'));
+  // auto season
+  const mo = new Date().getMonth()+1;
+  const seasonIdx = mo>=3&&mo<=5?0 : mo>=6&&mo<=8?1 : mo>=9&&mo<=11?2 : 3;
+  const sg = document.getElementById('g-season');
+  if(sg) sg.querySelectorAll('.chip').forEach((c,i)=>c.classList.toggle('active',i===seasonIdx));
+  uploadedPhotos = []; selectedPhotos = [];
+  updateAutoPills('', '');
+  cachedWeather = ''; cachedCoord = ''; cachedLat = null; cachedLon = null;
+  // Reset header to new-entry state
+  const _titleEl = document.querySelector('#page-new .brand-title');
+  if (_titleEl) _titleEl.innerHTML = '新增 <em>遊記</em>';
+  const _subEl = document.querySelector('#page-new .brand-sub');
+  if (_subEl) _subEl.textContent = '填入重點，AI 幫你寫成故事';
+  const _genBtn = document.getElementById('generate-btn');
+  if (_genBtn) _genBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" stroke-linecap="round" stroke-linejoin="round"/></svg>AI 產生遊記`;
+}
+
+function updateAutoPills(weather, coord) {
+  const el = document.getElementById('auto-pills');
+  const wHtml = weather
+    ? `<span class="auto-pill weather"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v1M18.4 5.6l-.7.7M21 12h-1M18.4 18.4l-.7-.7M12 20v1M5.6 18.4l.7-.7M4 12H3M5.6 5.6l.7.7" stroke-linecap="round"/><circle cx="12" cy="12" r="4"/></svg>${weather}</span>`
+    : `<span class="auto-pill weather loading"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v1M18.4 5.6l-.7.7M21 12h-1M18.4 18.4l-.7-.7M12 20v1M5.6 18.4l.7-.7M4 12H3M5.6 5.6l.7.7" stroke-linecap="round"/><circle cx="12" cy="12" r="4"/></svg>天氣取得中...</span>`;
+  const cHtml = coord
+    ? `<span class="auto-pill coord"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-linecap="round"/></svg>${coord}</span>`
+    : `<span class="auto-pill coord loading"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-linecap="round"/></svg>座標取得中...</span>`;
+  el.innerHTML = wHtml + cHtml;
+}
+
+let cachedWeather = '';
+let cachedCoord = '';
+let cachedLat = null;
+let cachedLon = null;
+
+async function onLocationInput() {
+  clearTimeout(locationTimer);
+  locationTimer = setTimeout(fetchLocationData, 1200);
+}
+
+async function fetchLocationData() {
+  const loc = document.getElementById('f-location').value.trim();
+  if (!loc) { updateAutoPills('', ''); return; }
+  updateAutoPills('', '');
+  try {
+    const q = loc.split('、')[0].split(',')[0].trim();
+    const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {
+      headers: { 'Accept-Language': 'zh-TW,zh,en' }
+    });
+    const geoData = await geoRes.json();
+    if (!geoData.length) { updateAutoPills('找不到地點', '找不到地點'); return; }
+    const {lat, lon} = geoData[0];
+    cachedLat = +lat; cachedLon = +lon;
+    const latD = (+lat).toFixed(2); const lonD = (+lon).toFixed(2);
+    const latLabel = +lat >= 0 ? `${latD}°N` : `${Math.abs(latD)}°S`;
+    const lonLabel = +lon >= 0 ? `${lonD}°E` : `${Math.abs(lonD)}°W`;
+    cachedCoord = `${latLabel} ${lonLabel}`;
+
+    const date = document.getElementById('f-date').value || new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
+    const isPast = date < today;
+
+    // Use historical API for past dates, forecast for today/future
+    let wUrl;
+    if (isPast) {
+      wUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,weathercode&timezone=auto&start_date=${date}&end_date=${date}`;
+    } else {
+      wUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,weathercode&timezone=auto&start_date=${date}&end_date=${date}`;
+    }
+
+    const wRes = await fetch(wUrl);
+    const wData = await wRes.json();
+    const temp = Math.round(wData.daily?.temperature_2m_max?.[0] ?? 0);
+    const code = wData.daily?.weathercode?.[0] ?? 0;
+    cachedWeather = `${weatherLabel(code)} ${temp}°C`;
+    updateAutoPills(cachedWeather, cachedCoord);
+  } catch(e) {
+    updateAutoPills('網路無法連線', cachedCoord || '無法取得');
+  }
+}
+
+function weatherLabel(code) {
+  if (code === 0) return '☀️ 晴天';
+  if (code <= 3) return '⛅ 多雲';
+  if (code <= 49) return '🌫️ 霧';
+  if (code <= 69) return '🌧️ 下雨';
+  if (code <= 79) return '❄️ 下雪';
+  if (code <= 99) return '⛈️ 雷雨';
+  return '🌤️ 晴時多雲';
+}
+
+// ── PHOTOS ──
+async function handlePhotoUpload(input) {
+  const files = Array.from(input.files);
+  const remaining = 15 - uploadedPhotos.length;
+  const filesToProcess = files.slice(0, remaining);
+  if (filesToProcess.length === 0) return;
+  
+  showToast('照片壓縮載入中...');
+  
+  for (const f of filesToProcess) {
+    try {
+      const compressedDataUrl = await compressImage(f, 1200, 1200, 0.8);
+      uploadedPhotos.push(compressedDataUrl);
+      selectedPhotos.push(compressedDataUrl);
+    } catch (err) {
+      console.error('Image compression failed:', err);
+      showToast('部分照片載入失敗');
+    }
+  }
+  renderPhotoGrid();
+  input.value = '';
+}
+
+
+
+function renderPhotoGrid() {
+  const grid = document.getElementById('photo-grid');
+  const count = document.getElementById('photo-count');
+  if (!uploadedPhotos.length) { grid.innerHTML = ''; count.style.display='none'; return; }
+  grid.innerHTML = uploadedPhotos.map((src, i) => {
+    const sel = selectedPhotos.includes(src);
+    return `<div class="photo-thumb ${sel?'selected':''}" onclick="togglePhoto(${i})">
+      <img src="${src}" alt="">
+      <div class="ck"><svg viewBox="0 0 24 24" fill="none"><polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>`;
+  }).join('');
+  count.style.display = 'block';
+  count.textContent = `已選 ${selectedPhotos.length} / 15 張`;
+}
+
+function togglePhoto(i) {
+  const src = uploadedPhotos[i];
+  const idx = selectedPhotos.indexOf(src);
+  if (idx > -1) selectedPhotos.splice(idx, 1);
+  else if (selectedPhotos.length < 15) selectedPhotos.push(src);
+  renderPhotoGrid();
+}
+
+// ── VOICE ──
+function toggleVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('此瀏覽器不支援語音輸入'); return; }
+  if (isRecording) { recognition?.stop(); return; }
+  recognition = new SR();
+  recognition.lang = 'zh-TW';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  const ta = document.getElementById('f-notes');
+  const orig = ta.value;
+  recognition.onstart = () => {
+    isRecording = true;
+    document.getElementById('mic-btn').classList.add('recording');
+    document.getElementById('voice-hint').className = 'voice-hint on';
+    document.getElementById('voice-hint').textContent = '聆聽中，說完後點擊停止...';
+  };
+  recognition.onresult = e => {
+    let final = '', interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    ta.value = orig + (orig && (final||interim) ? ' ' : '') + (final || interim);
+  };
+  recognition.onerror = () => stopVoice();
+  recognition.onend = () => stopVoice();
+  recognition.start();
+}
+
+function stopVoice() {
+  isRecording = false;
+  document.getElementById('mic-btn').classList.remove('recording');
+  document.getElementById('voice-hint').className = 'voice-hint done';
+  document.getElementById('voice-hint').textContent = '語音輸入完成';
+  setTimeout(() => {
+    document.getElementById('voice-hint').className = 'voice-hint';
+    document.getElementById('voice-hint').textContent = '點右側麥克風即可語音輸入';
+  }, 2000);
+}
+
+function pickChip(el) {
+  const grp = el.parentElement;
+  const single = grp.dataset.single === 'true';
+  if (single) {
+    grp.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+  } else {
+    el.classList.toggle('active');
+  }
+}
+function chipVal(groupId) {
+  const grp = document.getElementById(groupId);
+  if (!grp) return '';
+  const actives = [...grp.querySelectorAll('.chip.active')].map(c => c.textContent.trim());
+  return actives.join(' · ');
+}
+function getSelectedThemes() { return chipVal('g-themes'); }
+
+// ── AI GENERATE ──
+async function generateArticle() {
+  const loc = document.getElementById('f-location').value.trim();
+  const notes = document.getElementById('f-notes').value.trim();
+  if (!loc) { showToast('請先填寫地點'); return; }
+
+  const formData = {
+    date: document.getElementById('f-date').value,
+    location: loc,
+    type: chipVal('g-type'),
+    area: chipVal('g-area'),
+    season: chipVal('g-season'),
+    visit: chipVal('g-visit') || '',
+    with: chipVal('g-with'),
+    kids: chipVal('g-kids'),
+    stay: chipVal('g-stay'),
+    daynum: document.getElementById('f-daynum') ? document.getElementById('f-daynum').value : '',
+    daytotal: document.getElementById('f-daytotal') ? document.getElementById('f-daytotal').value : '',
+    themes: getSelectedThemes(),
+    mood: chipVal('g-mood'),
+    tired: chipVal('g-tired') || '',
+    rating: chipVal('g-rating') || '',
+    style: chipVal('g-style'),
+    tone: chipVal('g-tone'),
+    lang: chipVal('g-lang'),
+    tags: document.getElementById('f-tags').value,
+    notes: notes,
+    fav: document.getElementById('f-fav').value,
+    weather: cachedWeather,
+    coord: cachedCoord,
+    lat: cachedLat,
+    lon: cachedLon,
+    photos: selectedPhotos.slice(0,15),
+    id: editingEntryId || Date.now().toString(),
+    coverPhotoIndex: editingEntryId ? (entries.find(e=>e.id===editingEntryId)?.coverPhotoIndex || 0) : 0,
+  };
+
+  goPage('article');
+  document.getElementById('article-content').innerHTML = `
+    <div class="ai-loading">
+      <div class="ai-loading-icon"></div>
+      <p>AI 正在撰寫你的遊記...</p>
+      <small>根據地點資料與景點介紹生成中</small>
+    </div>`;
+
+  try {
+    formData.articleHTML = GEMINI_KEY ? await callGemini(formData) : buildMockArticle(formData);
+    formData.title = extractTitle(formData.articleHTML) || formData.location;
+    formData.articleBody = GEMINI_KEY ? extractBody(formData.articleHTML) : formData.articleHTML;
+    if (editingEntryId) {
+      const idx = entries.findIndex(e => e.id === editingEntryId);
+      if (idx > -1) entries[idx] = formData; else entries.push(formData);
+      editingEntryId = null;
+    } else {
+      entries.push(formData);
+    }
+    currentEntry = formData;
+    await save(formData);
+    renderArticle(formData);
+  } catch(e) {
+    document.getElementById('article-content').innerHTML = `
+      <div class="ai-loading">
+        <p>生成失敗，請確認網路連線</p>
+        <small>${e.message}</small>
+      </div>`;
+  }
+}
+
+async function callGemini(d) {
+  const langInst = d.lang === '中英混排' ? '用中文寫，地名景點用原文附註（如：哲學之道 Tetsugaku-no-michi）' :
+    d.lang === '全英文' ? 'Write entirely in English' : '全部用中文書寫';
+  const styleMap = {
+    '輕鬆日記':'輕鬆日記口吻，像寫給自己看的私人日記，語氣活潑有溫度',
+    '詩意散文':'風格詩意、充滿感性與意象，但保留活潑感',
+    '簡潔流水帳':'簡潔記錄，條理清楚，不過度描述，可在重點處加emoji',
+    '說故事體':'像說故事一樣，有起承轉合，生動吸引人讀下去',
+    '旅遊雜誌風':'專業旅遊雜誌風格，兼顧資訊性與可讀性，加入實用小Tips',
+    '寫給未來的信':'以「親愛的未來的我」開頭，溫柔寫給多年後回憶的自己',
+    '電影分鏡感':'如電影腳本，有場景切換感，畫面感強烈，用「鏡頭帶到...」等描述',
+    '慢活隨筆':'緩慢、細膩，享受每個當下的生活感悟，像午後的漫談',
+  };
+  const toneMap = {
+    '幽默風趣':'語氣幽默、偶爾自嘲，讓讀者會心一笑，避免過度正經',
+    '孤獨沉靜':'語調內斂沉靜，帶有獨旅的孤獨美感與哲思，文字留有空白感',
+    '文青感性':'文字細膩感性，充滿個人情感與生活觀察，善用比喻與意象',
+    '冒險刺激':'充滿熱血與冒險精神，節奏明快，用詞有張力，充滿躍動感',
+    '客觀寫實':'語氣客觀中立，以具體事實描述為主，減少主觀情緒與誇飾',
+    '浪漫唯美':'用詞浪漫唯美，充滿詩意，細節描寫動人，色彩感與畫面感豐富',
+  };
+  const styleInst = styleMap[d.style.replace(/^[📓🖋📋🎙📰💌🎬🍃]\s*/,'')] || styleMap['輕鬆日記'];
+  const toneKeys = d.tone ? d.tone.split(' · ').map(t => t.replace(/^[\S]+\s/, '').trim()) : [];
+  const toneDescs = toneKeys.map(k => toneMap[k] || k).filter(Boolean);
+  const toneInst = toneDescs.length
+    ? `\n- 【語調要求】文章語調必須明確展現以下特色：${toneDescs.join('；')}。這是強制要求，須貫穿全文，不可僅在少數句子體現`
+    : '';
+
+  const prompt = `你是一位旅行日誌作家，請根據以下資訊完成兩件事：
+
+**第一行**：下一個吸引人的旅遊日記標題（20字以內，要有個性、可加emoji）
+**空一行**
+**接著**：寫一篇控制在 250 字以內的精簡旅遊日記（必須分 2 至 3 個段落，每段獨立換行）
+
+【旅行背景資訊】
+日期：${d.date}
+地點：${d.location}
+旅行類型：${d.type} · ${d.area||''} · ${d.season||''}
+同行者：${d.with} · ${d.headcount||''}
+住宿：${d.stay||''}
+${d.daynum?`行程天數：第 ${d.daynum} 天 / 共 ${d.daytotal} 天`:''}
+${d.visit||''}
+旅行主題：${d.themes||''}
+心情：${d.mood} · 疲累：${d.tired||''}
+評分：${d.rating||''} · 天氣：${d.weather}
+座標：${d.coord}
+自訂標籤：${d.tags||''}
+
+【今日重點（核心素材）】
+${d.notes || '（未填寫，請根據地點發揮）'}
+
+【最喜歡的一刻】
+${d.fav || '（未填寫）'}
+
+【寫作要求】
+- 【最重要】「今日重點」是這篇遊記的核心素材，所有提到的地點、活動、食物、體驗與感受，都必須具體出現在文章中，不可替換成模糊的通用描述或憑空捏造未提及的內容
+- 【文章風格】${styleInst}${toneInst}
+- 【語言】${langInst}
+- 總字數嚴格控制在 250 字以內，精簡有力，拒絕冗長贅字
+- 文章必須段落分明（2 至 3 個清晰獨立段落，段落間換行）
+- 自然穿插 emoji 讓文章活潑生動
+- 若「最喜歡的一刻」有填寫，必須用 ⭐ 或 💛 特別凸顯
+- 只輸出「標題行 + 空行 + 文章」，不要任何說明文字
+
+直接輸出：`;
+
+  const body = { model:'gemini-2.5-flash-lite', contents:[{parts:[{text:prompt}]}], generationConfig:{maxOutputTokens:1400,temperature:0.92} };
+  if (d.photos?.length && GEMINI_KEY) {
+    const imgParts = d.photos.slice(0, 3).map(p => {
+      const match = p.match(/^data:(image\/[a-zA-Z+.-]+);base64,/);
+      return {
+        inlineData: {
+          mimeType: match ? match[1] : 'image/jpeg',
+          data: p.split(',')[1] || p
+        }
+      };
+    });
+    body.contents[0].parts = [...imgParts, {text: prompt}];
+  }
+
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_KEY}`,
+    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+function buildMockArticle(d) {
+  const loc = d.location || '這個地方';
+  const with_ = d.with || '旅伴';
+  const weather = d.weather || '晴朗的天氣';
+  const notes = d.notes || '';
+  const fav = d.fav || '';
+
+  return `🌟 ${loc}，我來了！這趟說走就走的旅行，果然沒讓我失望～
+
+清晨踏上${loc}的土地，空氣裡有一股說不出的清新 ✨ ${weather}，${with_}同行，光是這樣就已經很幸福了。搭著${d.transport || '交通工具'}一路往目的地前進，沿路的風景讓人不停按快門 📸
+
+${loc}真的是個寶藏地方 💎 這裡的歷史可以追溯到很久以前，保留了許多獨特的人文風景與自然之美。每走一個轉角，都可能遇見讓你驚呼的畫面，難怪來過的人都說「一定要來一次」！
+
+${notes ? `今天最讓我難忘的是：${notes} 😍 完全在我的意料之外，這就是旅行最迷人的地方吧！` : ''}
+
+路上還遇到了好多可愛的小驚喜 🎁 當地的美食也沒讓我們失望，每一口都是滿足 😋 旅行嘛，吃好吃飽才有力氣繼續走！
+
+${fav ? `⭐ 今天最想記住的一刻：「${fav}」。那個瞬間好像時間都靜止了，只想把這個畫面永遠刻在記憶裡 🥹` : ''}
+
+走了一整天，腳有點痠但心超滿足 💪 在${weather}下結束這美好的一天，想到明天還有更多等著探索，就覺得超期待的！旅行就是這樣，每一天都是新的驚喜 🌈`;
+}
+
+function extractTitle(text) {
+  const lines = text.split('\n').filter(l => l.trim());
+  // First line is the title
+  const first = lines[0]?.trim();
+  if (first && first.length <= 40) return first;
+  return lines[0]?.slice(0, 30) || null;
+}
+
+function extractBody(text) {
+  // Skip first line (title) and blank lines after it, return rest
+  const lines = text.split('\n');
+  let started = false;
+  let titleSkipped = false;
+  const body = [];
+  for (const line of lines) {
+    if (!titleSkipped) {
+      if (line.trim()) titleSkipped = true; // skip title line
+      continue;
+    }
+    if (!started && !line.trim()) continue; // skip blank lines after title
+    started = true;
+    body.push(line);
+  }
+  return body.join('\n');
+}
+
+function renderArticle(d) {
+  const photos = d.photos || [];
+  const coverIdx = Math.min(d.coverPhotoIndex || 0, photos.length ? photos.length - 1 : 0);
+  const isShared = !!d.isSharedView;
+
+  function coverBtn(idx) {
+    if (isShared || photos.length < 2) return '';
+    const active = coverIdx === idx;
+    return `<button class="mosaic-cover-btn ${active?'is-cover':''}" onclick="event.stopPropagation();setCoverPhoto(${idx})">${active?'✓ 封面':'設封面'}</button>`;
+  }
+  function coverBtnSm(idx) {
+    if (isShared || photos.length < 2) return '';
+    const active = coverIdx === idx;
+    return `<button class="cover-pick-btn ${active?'is-cover':''}" onclick="event.stopPropagation();setCoverPhoto(${idx})">${active?'✓':'封面'}</button>`;
+  }
+
+  const mosaicMain = photos[0]
+    ? `<div class="mosaic-main-blur" style="background-image:url('${photos[0]}')"></div><img src="${photos[0]}" alt="" onclick="openLightbox(0)" style="cursor:zoom-in">${coverBtn(0)}`
+    : `<span style="position:relative;z-index:1">${coverEmoji(d)}</span>`;
+  const mosaicS1 = photos[1]
+    ? `<div class="mosaic-sm-blur" style="background-image:url('${photos[1]}')"></div><img src="${photos[1]}" alt="" onclick="openLightbox(1)" style="cursor:zoom-in">${coverBtn(1)}`
+    : '';
+  const mosaicS2 = photos[2]
+    ? `<div class="mosaic-sm-blur" style="background-image:url('${photos[2]}')"></div><img src="${photos[2]}" alt="" onclick="openLightbox(2)" style="cursor:zoom-in">${coverBtn(2)}`
+    : '';
+  const restPhotos = photos.slice(3).map((p, idx) => {
+    const pi = idx + 3;
+    return `<div class="ph"><img src="${p}" alt="" onclick="openLightbox(${pi})" style="cursor:zoom-in">${coverBtnSm(pi)}</div>`;
+  }).join('');
+
+  const bodyText = d.articleBody || (GEMINI_KEY ? extractBody(d.articleHTML||'') : d.articleHTML||'');
+  const paras = bodyText.split('\n').filter(p => p.trim()).map(p =>
+    `<p class="article-p">${p.trim()}</p>`).join('');
+
+  const favBlock = d.fav ? `
+    <div class="fav-moment">
+      <div class="fav-moment-label">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        最喜歡的一刻
+      </div>
+      <div class="fav-moment-text">${d.fav}</div>
+    </div>` : '';
+
+  document.getElementById('article-content').innerHTML = `
+    <div class="article-hero">
+      <div class="article-kicker">${d.type} · ${d.date || ''}</div>
+      <div class="article-title">${d.title || d.location}</div>
+      <div class="article-title-en">${d.location}</div>
+      <div class="meta-pills">
+        <span class="meta-pill"><svg viewBox="0 0 24 24" fill="none"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke-linecap="round"/><circle cx="12" cy="10" r="3"/></svg>${d.location}</span>
+        ${d.weather ? `<span class="meta-pill">${d.weather}</span>` : ''}
+        ${d.season ? `<span class="meta-pill">${d.season}</span>` : ''}
+        ${d.visit ? `<span class="meta-pill">${d.visit}</span>` : ''}
+        ${d.rating ? `<span class="meta-pill">${d.rating.split(' ')[0]}</span>` : ''}
+        ${d.coord ? `<span class="meta-pill"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-linecap="round"/></svg>${d.coord}</span>` : ''}
+        ${d.daynum ? `<span class="meta-pill">Day ${d.daynum}${d.daytotal ? ' / '+d.daytotal : ''}</span>` : ''}
+        ${d.themes ? d.themes.split(' ').filter(Boolean).map(t=>`<span class="meta-pill">${t}</span>`).join('') : ''}
+        ${d.tags ? d.tags.split(' ').filter(Boolean).map(t=>`<span class="meta-pill">#${t}</span>`).join('') : ''}
+      </div>
+      <div class="mosaic-layout">
+        <div class="mosaic-main">${mosaicMain}</div>
+        <div class="mosaic-side">
+          <div class="mosaic-sm">${mosaicS1}</div>
+          <div class="mosaic-sm">${mosaicS2}</div>
+        </div>
+      </div>
+    </div>
+    <div class="article-body">
+      ${paras}
+      ${favBlock}
+      ${restPhotos ? `<div class="article-photos-row">${restPhotos}</div>` : ''}
+    </div>
+    <div class="article-info-bar">
+      <span class="meta-pill">${d.with}</span>
+      <span class="meta-pill">${d.mood}</span>
+      ${d.tired ? `<span class="meta-pill">${d.tired}</span>` : ''}
+      ${d.stay ? `<span class="meta-pill">${d.stay}</span>` : ''}
+      ${d.area ? `<span class="meta-pill">${d.area}</span>` : ''}
+      ${photos.length ? `<span class="meta-pill"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21" stroke-linecap="round"/></svg>${photos.length} 張</span>` : ''}
+    </div>`;
+
+  const toolsEl = document.getElementById('article-tools');
+  const exportRowEl = document.querySelector('.export-row');
+  if (toolsEl) {
+    if (d.isSharedView) {
+      toolsEl.innerHTML = `
+        <button class="tool-btn" onclick="importSharedEntry()" style="color:var(--green);border-color:var(--green)">
+          <svg viewBox="0 0 24 24" fill="none" style="stroke:currentColor;stroke-width:2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke-linecap="round" stroke-linejoin="round"/><polyline points="17 21 17 13 7 13 7 21" stroke-linecap="round"/><polyline points="7 3 7 8 15 8" stroke-linecap="round"/></svg>
+          儲存至我的日誌
+        </button>
+      `;
+      if (exportRowEl) exportRowEl.style.display = 'none';
+    } else {
+      toolsEl.innerHTML = `
+        <button class="tool-btn" onclick="editEntry()">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          編輯
+        </button>
+        <button class="tool-btn" onclick="regenerate()">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M1 4v6h6M23 20v-6h-6" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 9A9 9 0 0 0 5.2 5.2M3.5 15A9 9 0 0 0 18.8 18.8" stroke-linecap="round"/></svg>
+          重新生成
+        </button>
+        <button class="tool-btn" onclick="exportHTML()">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          匯出
+        </button>
+        <button class="tool-btn" onclick="deleteEntry()" style="color:var(--red);border-color:var(--red)">
+          <svg viewBox="0 0 24 24" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          刪除
+        </button>
+      `;
+      if (exportRowEl) exportRowEl.style.display = 'flex';
+    }
+  }
+}
+
+function openEntry(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  currentEntry = e;
+  goPage('article');
+  renderArticle(e);
+}
+
+async function deleteEntry() {
+  if (!currentEntry) return;
+  if (!confirm(`確定要刪除「${currentEntry.title || currentEntry.location}」這篇遊記？`)) return;
+  const idToDelete = currentEntry.id;
+  entries = entries.filter(e => e.id !== idToDelete);
+  if (db) {
+    try {
+      await deleteEntryFromDB(idToDelete);
+      currentEntry = null;
+      showToast('遊記已刪除');
+      goPage('home');
+    } catch (err) {
+      console.error('Failed to delete from database:', err);
+      showToast('刪除失敗');
+    }
+  } else {
+    await save();
+    currentEntry = null;
+    showToast('遊記已刪除');
+    goPage('home');
+  }
+}
+
+async function regenerate() {
+  if (!currentEntry) return;
+  if (!GEMINI_KEY) { showToast('請先到「設定」頁面輸入 Gemini API Key'); return; }
+  document.getElementById('article-content').innerHTML = `
+    <div class="ai-loading">
+      <div class="ai-loading-icon"></div>
+      <p>重新生成中...</p>
+    </div>`;
+  try {
+    currentEntry.articleHTML = await callGemini(currentEntry);
+    currentEntry.title = extractTitle(currentEntry.articleHTML) || currentEntry.location;
+    currentEntry.articleBody = extractBody(currentEntry.articleHTML);
+    const idx = entries.findIndex(e => e.id === currentEntry.id);
+    if (idx > -1) entries[idx] = currentEntry;
+    await save(currentEntry);
+    renderArticle(currentEntry);
+    showToast('重新生成完成');
+  } catch(e) { showToast('生成失敗：' + e.message); }
+}
+
+function cancelNewEntry() {
+  editingEntryId = null;
+  goPage('home');
+}
+
+function editEntry() {
+  if (!currentEntry) return;
+  editingEntryId = currentEntry.id;
+  goPage('new');
+  const e = currentEntry;
+  // populate text fields
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+  setVal('f-date', e.date);
+  setVal('f-location', e.location);
+  setVal('f-notes', e.notes);
+  setVal('f-fav', e.fav);
+  setVal('f-tags', e.tags);
+  setVal('f-daynum', e.daynum);
+  setVal('f-daytotal', e.daytotal);
+  // populate chip groups (single-select)
+  ['g-type','g-area','g-season','g-with','g-stay','g-mood','g-style','g-lang'].forEach(id => {
+    setChipByValue(id, e[id.replace('g-','')]);
+  });
+  setChipByValue('g-visit', e.visit);
+  setChipByValue('g-kids', e.kids);
+  setChipByValue('g-tired', e.tired);
+  setChipByValue('g-rating', e.rating);
+  setChipByValue('g-tone', e.tone);
+  // multi-select themes
+  setChipsMulti('g-themes', e.themes);
+  // restore photos
+  uploadedPhotos = (e.photos || []).slice();
+  selectedPhotos = (e.photos || []).slice();
+  renderPhotoGrid();
+  // restore weather/coord cache
+  cachedWeather = e.weather || '';
+  cachedCoord = e.coord || '';
+  cachedLat = e.lat || null;
+  cachedLon = e.lon || null;
+  updateAutoPills(cachedWeather, cachedCoord);
+  // update header to edit mode
+  const titleEl = document.querySelector('#page-new .brand-title');
+  if (titleEl) titleEl.innerHTML = '編輯 <em>遊記</em>';
+  const subEl = document.querySelector('#page-new .brand-sub');
+  if (subEl) subEl.textContent = '修改資料後重新生成';
+  const genBtn = document.getElementById('generate-btn');
+  if (genBtn) genBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>重新生成遊記`;
+}
+
+function setChipByValue(groupId, value) {
+  if (!value) return;
+  const grp = document.getElementById(groupId);
+  if (!grp) return;
+  grp.querySelectorAll('.chip').forEach(c => {
+    c.classList.toggle('active', c.textContent.trim() === value);
+  });
+}
+
+function setChipsMulti(groupId, valStr) {
+  const grp = document.getElementById(groupId);
+  if (!grp) return;
+  const vals = new Set((valStr || '').split('、').map(s => s.trim()).filter(Boolean));
+  grp.querySelectorAll('.chip').forEach(c => {
+    c.classList.toggle('active', vals.has(c.textContent.trim()));
+  });
+}
+
+async function setCoverPhoto(idx) {
+  if (!currentEntry) return;
+  currentEntry.coverPhotoIndex = idx;
+  const entryIdx = entries.findIndex(e => e.id === currentEntry.id);
+  if (entryIdx > -1) entries[entryIdx] = currentEntry;
+  await save(currentEntry);
+  renderArticle(currentEntry);
+  showToast('封面照已設定');
+}
+
+function setHomeView(v) {
+  homeView = v;
+  renderHome();
+}
+
+function renderCalendar(containerId = 'year-cal') {
+  const content = document.getElementById(containerId);
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+  const firstDow = new Date(calendarYear, calendarMonth, 1).getDay();
+  const todayStr = new Date().toISOString().split('T')[0];
+  // build date → entries map
+  const byDate = {};
+  entries.forEach(e => { if (e.date) { if (!byDate[e.date]) byDate[e.date] = []; byDate[e.date].push(e); } });
+  const monthStr = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}`;
+  const dows = ['日','一','二','三','四','五','六'];
+  let html = `
+    <div class="cal-nav-row">
+      <button class="cal-nav" onclick="calNav(-1)">‹</button>
+      <div class="cal-month-title">${calendarYear} 年 ${calendarMonth+1} 月</div>
+      <button class="cal-nav" onclick="calNav(1)">›</button>
+    </div>
+    <div class="cal-grid">
+      ${dows.map(d=>`<div class="cal-dow">${d}</div>`).join('')}`;
+  // empty leading cells
+  for (let i = 0; i < firstDow; i++) html += `<div class="cal-cell empty"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${monthStr}-${String(d).padStart(2,'0')}`;
+    const dayEntries = byDate[dateStr] || [];
+    const isToday = dateStr === todayStr;
+    const hasEntry = dayEntries.length > 0;
+    const emoji = hasEntry ? coverEmoji(dayEntries[0]) : '';
+    const clickAttr = hasEntry ? `onclick="calDayClick('${dateStr}')"` : '';
+    html += `<div class="cal-cell ${hasEntry?'has-entry':''} ${isToday?'today':''}" ${clickAttr}>
+      <div class="cal-day">${d}</div>
+      ${hasEntry ? `<div class="cal-emoji">${emoji}</div>` : ''}
+    </div>`;
+  }
+  html += `</div>`;
+  content.insertAdjacentHTML('beforeend', html);
+}
+
+function calNav(delta) {
+  calendarMonth += delta;
+  if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+  if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+  renderYearSummary();
+}
+
+function calDayClick(dateStr) {
+  const dayEntries = entries.filter(e => e.date === dateStr);
+  if (!dayEntries.length) return;
+  if (dayEntries.length === 1) { openEntry(dayEntries[0].id); return; }
+  // multiple entries: show a brief picker toast or just open first for now
+  openEntry(dayEntries[0].id);
+}
+
+function exportHTML() {
+  if (!currentEntry) return;
+  const rawDataJson = JSON.stringify(currentEntry).replace(/</g, '\\u003c');
+  const html = `<!DOCTYPE html><html lang="zh-TW">\u003Chead\u003E<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${currentEntry.title||currentEntry.location}</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&family=Noto+Sans+TC:wght@300;400&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+<style>body{max-width:680px;margin:0 auto;padding:40px 24px;background:#FAF7F2;font-family:'Noto Sans TC',sans-serif;color:#1C1812;line-height:1.8}h1{font-family:'Playfair Display',serif;font-size:32px;margin-bottom:8px}h2{font-family:'Playfair Display',serif;font-size:20px;margin:24px 0 8px}p{font-size:15px;color:#5C5448;margin-bottom:16px;font-weight:300}.meta{font-size:13px;color:#9C9488;margin-bottom:24px}.photo{width:100%;border-radius:12px;margin:16px 0;object-fit:cover;max-height:400px}</style>
+\u003C/head\u003E\u003Cbody\u003E
+<h1>${currentEntry.title||currentEntry.location}</h1>
+<div class="meta">${currentEntry.date} · ${currentEntry.location} · ${currentEntry.weather||''} · ${currentEntry.coord||''}</div>
+${(currentEntry.photos||[]).slice(0,1).map(p=>`<img class="photo" src="${p}" alt="">`).join('')}
+${(currentEntry.articleHTML||'').split('\n').filter(l=>l.trim()).map(l=>`<p>${l}</p>`).join('')}
+${currentEntry.fav?`<blockquote style="border-left:3px solid #BA8C3C;padding-left:16px;margin:24px 0;font-style:italic;color:#7A6030">★ ${currentEntry.fav}</blockquote>`:''}
+\u003Cscript type="application/json" id="tj-raw-data"\u003E${rawDataJson}\u003C/script\u003E
+\u003C/body\u003E\u003C/html\u003E`;
+  const blob = new Blob([html], {type:'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `遊記-${currentEntry.location}-${currentEntry.date}.html`;
+  a.click();
+  showToast('HTML 檔案已下載');
+}
+
+function closeIgCard() {
+  const modal = document.getElementById('ig-card-modal');
+  if (modal) modal.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+function downloadIgCard() {
+  const canvas = document.getElementById('ig-card-canvas');
+  if (!canvas) return;
+  const link = document.createElement('a');
+  link.download = `旅行故事-${currentEntry?.location}-${currentEntry?.date}.jpg`;
+  link.href = canvas.toDataURL('image/jpeg', 0.95);
+  link.click();
+  showToast('圖卡已下載，快分享到 IG 限動吧！');
+}
+
+function shareIG() {
+  if (!currentEntry) return;
+  const modal = document.getElementById('ig-card-modal');
+  if (!modal) return;
+  
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+  
+  const canvas = document.getElementById('ig-card-canvas');
+  const ctx = canvas.getContext('2d');
+  
+  // 1. Draw solid background
+  const grad = ctx.createLinearGradient(0, 0, 0, 1920);
+  grad.addColorStop(0, '#FAF6EE');
+  grad.addColorStop(1, '#EDE2D0');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 1080, 1920);
+  
+  // 2. Draw border
+  ctx.strokeStyle = '#6B4226';
+  ctx.lineWidth = 16;
+  ctx.strokeRect(40, 40, 1000, 1840);
+  ctx.strokeStyle = '#6B4226';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(56, 56, 968, 1808);
+  
+  // 3. Load photo if exists
+  const hasPhoto = currentEntry.photos && currentEntry.photos.length > 0;
+  if (hasPhoto) {
+    const img = new Image();
+    img.onload = () => {
+      drawIgCardContents(ctx, img);
+    };
+    img.src = currentEntry.photos[0];
+  } else {
+    drawIgCardContents(ctx, null);
+  }
+}
+
+function drawIgCardContents(ctx, img) {
+  const accentColor = '#6B4226';
+  const inkColor = '#1A1510';
+  const ink2Color = '#4A4238';
+  
+  ctx.textAlign = 'center';
+  
+  // Draw Location / Date Header
+  ctx.fillStyle = accentColor;
+  ctx.font = "italic 400 36px 'Cormorant Garamond', 'Noto Serif TC', serif";
+  const dateStr = currentEntry.date ? formatDate(currentEntry.date) : '';
+  ctx.fillText(`—  ${currentEntry.location || '旅途'}  ·  ${dateStr}  —`, 540, 150);
+  
+  // Draw Title
+  ctx.fillStyle = inkColor;
+  ctx.font = "700 64px 'Noto Serif TC', serif";
+  const titleText = currentEntry.title || currentEntry.location || '無標題遊記';
+  
+  const titleLines = wrapText(ctx, titleText, 800);
+  let y = 240;
+  titleLines.forEach(line => {
+    ctx.fillText(line, 540, y);
+    y += 80;
+  });
+  
+  let photoBottom = y - 40;
+  if (img) {
+    const photoWidth = 840;
+    const photoHeight = 840;
+    const px = 120;
+    const py = y;
+    
+    ctx.fillStyle = 'rgba(26,21,16,0.06)';
+    ctx.fillRect(px + 12, py + 12, photoWidth, photoHeight);
+    
+    ctx.fillStyle = '#FDFAF5';
+    ctx.strokeStyle = '#D4C8B4';
+    ctx.lineWidth = 2;
+    ctx.fillRect(px, py, photoWidth, photoHeight);
+    ctx.strokeRect(px, py, photoWidth, photoHeight);
+    
+    const imagePadding = 20;
+    const ix = px + imagePadding;
+    const iy = py + imagePadding;
+    const iw = photoWidth - (imagePadding * 2);
+    const ih = photoHeight - (imagePadding * 2) - 40;
+    
+    const imgRatio = img.width / img.height;
+    const frameRatio = iw / ih;
+    let sx, sy, sw, sh;
+    if (imgRatio > frameRatio) {
+      sh = img.height;
+      sw = img.height * frameRatio;
+      sx = (img.width - sw) / 2;
+      sy = 0;
+    } else {
+      sw = img.width;
+      sh = img.width / imgRatio;
+      sx = 0;
+      sy = (img.height - sh) / 2;
+    }
+    
+    ctx.drawImage(img, sx, sy, sw, sh, ix, iy, iw, ih);
+    
+    ctx.fillStyle = '#8C8070';
+    ctx.font = "300 24px 'Noto Sans TC', sans-serif";
+    ctx.fillText(`📍 ${currentEntry.location || ''}`, 540, py + photoHeight - 20);
+    
+    photoBottom = py + photoHeight;
+  } else {
+    const px = 540;
+    const py = y + 100;
+    ctx.fillStyle = 'rgba(107,66,38,0.04)';
+    ctx.beginPath();
+    ctx.arc(px, py + 150, 180, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.strokeStyle = 'rgba(107,66,38,0.2)';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([10, 10]);
+    ctx.beginPath();
+    ctx.arc(px, py + 150, 160, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    ctx.font = "120px sans-serif";
+    ctx.fillText("✈️", px, py + 190);
+    
+    photoBottom = py + 380;
+  }
+  
+  const quoteY = photoBottom + 120;
+  const favText = currentEntry.fav || (currentEntry.articleBody ? currentEntry.articleBody.slice(0, 50) + '...' : '');
+  if (favText) {
+    ctx.fillStyle = accentColor;
+    ctx.font = "400 60px 'Cormorant Garamond', serif";
+    ctx.fillText("“", 540, quoteY);
+    
+    ctx.fillStyle = ink2Color;
+    ctx.font = "300 32px 'Noto Serif TC', serif";
+    const quoteLines = wrapText(ctx, favText, 760);
+    let qy = quoteY + 60;
+    quoteLines.forEach(line => {
+      ctx.fillText(line, 540, qy);
+      qy += 48;
+    });
+    
+    ctx.fillStyle = accentColor;
+    ctx.font = "400 60px 'Cormorant Garamond', serif";
+    ctx.fillText("”", 540, qy + 20);
+  }
+  
+  ctx.fillStyle = '#B8AE9C';
+  ctx.font = "300 24px 'Cormorant Garamond', sans-serif";
+  ctx.letterSpacing = '2px';
+  ctx.fillText("M Y  T R A V E L  J O U R N A L", 540, 1780);
+}
+
+function wrapText(ctx, text, maxWidth) {
+  const words = Array.from(text);
+  const lines = [];
+  let currentLine = "";
+  
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const testLine = currentLine + word;
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && i > 0) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+  return lines;
+}
+async function shareThread() {
+  if (!currentEntry) return;
+  const title = currentEntry.title || currentEntry.location || '無標題遊記';
+  const bodyText = currentEntry.articleBody || (GEMINI_KEY ? extractBody(currentEntry.articleHTML||'') : currentEntry.articleHTML||'');
+  
+  const entryPayload = { ...currentEntry };
+  delete entryPayload.photos;
+  delete entryPayload.id;
+  delete entryPayload.isSharedView;
+  delete entryPayload.notes;
+  delete entryPayload.articleBody;
+  delete entryPayload.style;
+  delete entryPayload.tone;
+  delete entryPayload.lang;
+  
+  let shareUrl = '';
+  try {
+    const b64 = await encodeShareData(entryPayload);
+    const baseUrl = window.location.href.split('#')[0];
+    shareUrl = `${baseUrl}#share=${b64}`;
+  } catch (err) {}
+
+  let shortBody = bodyText;
+  if (shortBody.length > 100) shortBody = shortBody.slice(0, 100) + '...';
+  
+  let text = `📍 ${currentEntry.location} - ${currentEntry.date}\n\n【${title}】\n${shortBody}\n\n`;
+  if (shareUrl) text += `完整內容與地圖：\n${shareUrl}\n\n`;
+  text += `#旅行日誌 #${currentEntry.location}`;
+  
+  navigator.clipboard?.writeText(text).then(() => showToast('文字與網址已複製，請貼到 Threads'));
+}
+async function shareFB() {
+  if (!currentEntry) return;
+  const title = currentEntry.title || currentEntry.location || '無標題遊記';
+  const bodyText = currentEntry.articleBody || (GEMINI_KEY ? extractBody(currentEntry.articleHTML||'') : currentEntry.articleHTML||'');
+  
+  const entryPayload = { ...currentEntry };
+  delete entryPayload.photos;
+  delete entryPayload.id;
+  delete entryPayload.isSharedView;
+  delete entryPayload.notes;
+  delete entryPayload.articleBody;
+  delete entryPayload.style;
+  delete entryPayload.tone;
+  delete entryPayload.lang;
+  
+  let shareUrl = '';
+  try {
+    const b64 = await encodeShareData(entryPayload);
+    const baseUrl = window.location.href.split('#')[0];
+    shareUrl = `${baseUrl}#share=${b64}`;
+  } catch (err) {}
+
+  let shortBody = bodyText;
+  if (shortBody.length > 150) shortBody = shortBody.slice(0, 150) + '...';
+  
+  let text = `📍 ${currentEntry.location} - ${currentEntry.date}\n\n【${title}】\n${shortBody}\n\n`;
+  if (shareUrl) text += `完整內容與地圖：\n${shareUrl}\n\n`;
+  text += `#旅行日誌`;
+  
+  navigator.clipboard?.writeText(text).then(() => showToast('文字與網址已複製，請貼到 Facebook'));
+}
+
+async function shortenUrl(longUrl) {
+  if (/localhost|127\.0\.0\.1|file:\/\//.test(longUrl)) return null;
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 3000);
+    const r = await fetch(
+      `https://is.gd/create.php?format=simple&url=${encodeURIComponent(longUrl)}`,
+      { signal: ctrl.signal }
+    );
+    clearTimeout(tid);
+    if (r.ok) {
+      const s = (await r.text()).trim();
+      if (s.startsWith('https://is.gd/') || s.startsWith('https://v.gd/')) return s;
+    }
+  } catch(e) {}
+  return null;
+}
+
+async function shareLINE() {
+  if (!currentEntry) return;
+  const title = currentEntry.title || currentEntry.location || '無標題遊記';
+  const bodyText = currentEntry.articleBody || (GEMINI_KEY ? extractBody(currentEntry.articleHTML||'') : currentEntry.articleHTML||'');
+
+  const entryPayload = { ...currentEntry };
+  delete entryPayload.photos;
+  delete entryPayload.id;
+  delete entryPayload.isSharedView;
+  delete entryPayload.notes;
+  delete entryPayload.articleHTML;
+  delete entryPayload.style;
+  delete entryPayload.tone;
+  delete entryPayload.lang;
+
+  let shortBody = bodyText;
+  if (shortBody.length > 200) shortBody = shortBody.slice(0, 200) + '...';
+
+  showToast('⏳ 產生分享連結中...');
+
+  let shareUrl = '';
+  try {
+    const b64 = await encodeShareData(entryPayload);
+    const baseUrl = window.location.href.split('#')[0];
+    const longUrl = `${baseUrl}#share=${b64}`;
+    const short = await shortenUrl(longUrl);
+    shareUrl = short || longUrl;
+  } catch (err) {}
+
+  const fullText = `📍 ${currentEntry.location} - ${currentEntry.date}\n\n【${title}】\n${shortBody}\n\n完整遊記：\n${shareUrl}\n\n#旅行日誌`;
+  try { await navigator.clipboard.writeText(fullText); } catch(e) {}
+
+  const lineText = `📍 ${currentEntry.location} - ${currentEntry.date}\n【${title}】\n\n${shortBody}\n\n🔗 ${shareUrl}`;
+  window.open(`https://line.me/R/msg/text/?${encodeURIComponent(lineText)}`, '_blank');
+  showToast('📋 遊記已複製，LINE 視窗已開啟');
+}
+
+// ── OVERVIEW ──
+function renderOverview() {
+  const years = [...new Set(entries.map(e => e.date?.slice(0,4)).filter(Boolean))].sort((a,b)=>b-a);
+  const filterEl = document.getElementById('year-filter');
+  filterEl.innerHTML = `<button class="yr-btn active" onclick="filterYear(this,'all')">全部</button>` +
+    years.map(y => `<button class="yr-btn" onclick="filterYear(this,'${y}')">${y}</button>`).join('');
+  renderTimeline('all');
+  initMap();
+}
+
+function initMap() {
+  setTimeout(() => {
+    const mapEl = document.getElementById('travel-map');
+    if (!mapEl) return;
+
+    // Init map once
+    if (!travelMap) {
+      travelMap = L.map('travel-map', {
+        zoomControl: true,
+        scrollWheelZoom: false,
+        attributionControl: false,
+      });
+      const savedTheme = localStorage.getItem('tj_theme') || 'light';
+      const tileUrl = savedTheme === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+      L.tileLayer(tileUrl, {
+        maxZoom: 18,
+      }).addTo(travelMap);
+    }
+
+    // Clear old markers and route line
+    mapMarkers.forEach(m => m.remove());
+    mapMarkers = [];
+    if (travelRouteLine) {
+      travelRouteLine.remove();
+      travelRouteLine = null;
+    }
+
+    const pinned = entries.filter(e => e.lat && e.lon);
+    const emptyEl = document.getElementById('map-empty');
+
+    if (!pinned.length) {
+      if (emptyEl) emptyEl.style.display = 'flex';
+      travelMap.setView([25, 121], 4);
+      return;
+    }
+
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    // Custom marker style
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:12px;height:12px;background:#6B4226;border:2px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>`,
+      iconSize: [12, 12],
+      iconAnchor: [6, 6],
+    });
+
+    const bounds = [];
+    pinned.forEach(e => {
+      const marker = L.marker([e.lat, e.lon], { icon })
+        .addTo(travelMap)
+        .bindPopup(`
+          <div style="font-family:'Noto Sans TC',sans-serif;min-width:120px">
+            <div style="font-size:13px;font-weight:500;color:#1A1510;margin-bottom:3px">${e.title || e.location}</div>
+            <div style="font-size:11px;color:#8C8070">${e.date || ''} · ${e.location || ''}</div>
+            ${e.mood ? `<div style="font-size:12px;margin-top:4px">${e.mood}</div>` : ''}
+          </div>
+        `, { maxWidth: 200 });
+      marker.on('click', () => openEntry(e.id));
+      mapMarkers.push(marker);
+      bounds.push([e.lat, e.lon]);
+    });
+
+    // Draw chronological route line if there are multiple pinned locations
+    if (pinned.length > 1) {
+      const sortedPinned = [...pinned].sort((a, b) => new Date(a.date) - new Date(b.date));
+      const latlngs = sortedPinned.map(e => [e.lat, e.lon]);
+      const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6B4226';
+      travelRouteLine = L.polyline(latlngs, {
+        color: accentColor,
+        weight: 3,
+        opacity: 0.65,
+        dashArray: '6, 8',
+        lineJoin: 'round'
+      }).addTo(travelMap);
+    }
+
+    if (bounds.length === 1) {
+      travelMap.setView(bounds[0], 10);
+    } else if (bounds.length > 1) {
+      travelMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
+    }
+  }, 100);
+}
+
+function filterYear(btn, yr) {
+  document.querySelectorAll('.yr-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTimeline(yr);
+}
+
+function renderTimeline(yr) {
+  const filtered = yr === 'all' ? entries : entries.filter(e => e.date?.startsWith(yr));
+  const byYear = {};
+  filtered.slice().reverse().forEach(e => {
+    const y = e.date?.slice(0,4) || '未知';
+    if (!byYear[y]) byYear[y] = [];
+    byYear[y].push(e);
+  });
+
+  if (!filtered.length) {
+    document.getElementById('timeline-content').innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01" stroke-linecap="round"/></svg><h3>還沒有遊記</h3><p>開始記錄你的第一趟旅行</p></div>`;
+    return;
+  }
+
+  let html = '';
+  Object.keys(byYear).sort((a,b)=>b-a).forEach(y => {
+    html += `<div class="tl-year">${y}</div><div class="tl-grid">`;
+    byYear[y].forEach(e => {
+      const img = e.photos?.[0] ? `<img src="${e.photos[0]}" alt="">` : coverEmoji(e);
+      html += `<div class="tl-card" onclick="openEntry('${e.id}')">
+        <div class="tl-cover">${img}</div>
+        <div class="tl-info"><div class="tl-name">${e.title||e.location||'遊記'}</div><div class="tl-date">${formatDate(e.date)}</div></div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  document.getElementById('timeline-content').innerHTML = html;
+}
+
+// ── YEAR SUMMARY ──
+function renderYearSummary() {
+  const yr = new Date().getFullYear();
+  const thisYear = entries.filter(e => e.date?.startsWith(yr));
+  document.getElementById('year-sum-title').innerHTML = `${yr} 年度 <em>回顧</em>`;
+
+  if (!thisYear.length) {
+    document.getElementById('year-sum-content').innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke-linecap="round"/></svg><h3>今年還沒有遊記</h3><p>開始記錄 ${yr} 年的旅行故事</p></div>`;
+    document.getElementById('year-cal').innerHTML = `<div class="year-sep" style="padding-top:32px"><span>月曆回顧</span></div>`;
+    renderCalendar('year-cal');
+    return;
+  }
+
+  const cities = [...new Set(thisYear.map(e => e.location?.split('、')[0]))].filter(Boolean);
+  const moods = thisYear.map(e => e.mood).filter(Boolean);
+  const topMood = moods.sort((a,b) => moods.filter(m=>m===b).length - moods.filter(m=>m===a).length)[0] || '—';
+  const favEntry = thisYear.find(e => e.fav);
+
+  const story = `今年你去了 ${cities.length} 個城市，寫下了 ${thisYear.length} 篇旅行故事。最常出現的心情是「${topMood.replace(/[☀️🥰😌😮🌧]/g,'').trim()}」。${favEntry ? `最難忘的一刻，是在 ${favEntry.location}：「${favEntry.fav}」。` : ''}每一段旅程，都是生命中獨一無二的印記。`;
+
+  const favImg = favEntry?.photos?.[0] ? `<img src="${favEntry.photos[0]}" alt="">` : (favEntry ? coverEmoji(favEntry) : '');
+
+  document.getElementById('year-sum-content').innerHTML = `
+    <div class="year-sum-card">
+      <div class="ys-headline">今年，你走過了 ${cities.slice(0,3).join('、')}${cities.length>3?` 等 ${cities.length} 個城市`:''}。</div>
+      <div class="ys-stats">
+        <div class="ys-stat"><div class="ys-n">${thisYear.length}</div><div class="ys-l">篇遊記</div></div>
+        <div class="ys-stat"><div class="ys-n">${cities.length}</div><div class="ys-l">個城市</div></div>
+        <div class="ys-stat"><div class="ys-n">${topMood.split(' ')[0]||'—'}</div><div class="ys-l">最常心情</div></div>
+      </div>
+      <div class="ys-story">${story}</div>
+      ${favEntry ? `<div class="ys-fav">
+        <div class="ys-fav-label">★ 今年最喜歡的一刻</div>
+        <div class="ys-fav-card">
+          <div class="ys-fav-ico">${favImg}</div>
+          <div class="ys-fav-txt"><b>${favEntry.location}</b>${favEntry.fav}</div>
+        </div>
+      </div>` : ''}
+    </div>
+    <div class="share-section">
+      <div class="share-label">分享年度回顧</div>
+      <div class="share-grid">
+        <button class="share-btn" onclick="shareYearIG()">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
+          <span>IG Story</span>
+        </button>
+        <button class="share-btn" onclick="shareYearThread()">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5z"/></svg>
+          <span>Threads</span>
+        </button>
+        <button class="share-btn" onclick="shareYearFB()">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+          <span>Facebook</span>
+        </button>
+        <button class="share-btn" onclick="shareYearLINE()">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>LINE</span>
+        </button>
+      </div>
+    </div>`;
+  document.getElementById('year-cal').innerHTML = `<div class="year-sep" style="padding-top:32px"><span>月曆回顧</span></div>`;
+  renderCalendar('year-cal');
+}
+
+function shareYearIG() { showToast('請截圖此畫面分享到 IG Story'); }
+function shareYearThread() {
+  const yr = new Date().getFullYear();
+  const t = entries.filter(e=>e.date?.startsWith(yr));
+  const text = `✦ ${yr} 年旅行回顧\n📍 ${t.length} 篇旅記\n#旅行日誌 #${yr}年度回顧`;
+  navigator.clipboard?.writeText(text).then(()=>showToast('已複製到剪貼簿'));
+}
+function shareYearFB() { shareYearThread(); }
+
+function shareYearLINE() {
+  const yr = new Date().getFullYear();
+  const t = entries.filter(e=>e.date?.startsWith(yr));
+  const cities = [...new Set(t.map(e => e.location?.split('、')[0]))].filter(Boolean);
+  const text = `✦ ${yr} 年旅行回顧\n📍 造訪了 ${cities.length} 個城市\n📝 寫下了 ${t.length} 篇遊記\n\n#旅行日誌 #${yr}年度回顧`;
+  const url = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
+  window.open(url, '_blank');
+}
+
+// ── SETTINGS ──
+function initSettings() {
+  const inp = document.getElementById('setting-apikey');
+  if (inp) inp.value = GEMINI_KEY;
+  updateApiStatus();
+
+  // Highlight theme option in settings page
+  const savedTheme = localStorage.getItem('tj_theme') || 'light';
+  const grp = document.getElementById('g-theme');
+  if (grp) {
+    grp.querySelectorAll('.chip').forEach(c => {
+      const isMatch = (savedTheme === 'dark' && c.textContent.includes('深色')) ||
+                      (savedTheme === 'light' && c.textContent.includes('淺色'));
+      c.classList.toggle('active', isMatch);
+    });
+  }
+}
+
+function setTheme(themeName) {
+  document.documentElement.setAttribute('data-theme', themeName);
+  localStorage.setItem('tj_theme', themeName);
+  
+  // Highlight chips
+  const grp = document.getElementById('g-theme');
+  if (grp) {
+    grp.querySelectorAll('.chip').forEach(c => {
+      const isMatch = (themeName === 'dark' && c.textContent.includes('深色')) ||
+                      (themeName === 'light' && c.textContent.includes('淺色'));
+      c.classList.toggle('active', isMatch);
+    });
+  }
+  
+  // Dynamic Map Theme Switching
+  updateMapTheme();
+}
+
+function updateMapTheme() {
+  if (!travelMap) return;
+  
+  // Find and remove existing tile layer
+  travelMap.eachLayer(layer => {
+    if (layer instanceof L.TileLayer) {
+      travelMap.removeLayer(layer);
+    }
+  });
+  
+  const savedTheme = localStorage.getItem('tj_theme') || 'light';
+  const tileUrl = savedTheme === 'dark'
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    
+  L.tileLayer(tileUrl, { maxZoom: 18 }).addTo(travelMap);
+
+  // Update polyline color if exists
+  if (travelRouteLine) {
+    const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6B4226';
+    travelRouteLine.setStyle({ color: accentColor });
+  }
+}
+
+function saveApiKey() {
+  const val = document.getElementById('setting-apikey').value.trim();
+  GEMINI_KEY = val;
+  localStorage.setItem('tj_apikey', val);
+  updateApiStatus();
+  showToast(val ? '✅ API Key 已儲存！現在可以 AI 產生遊記了' : 'API Key 已清除');
+}
+
+function updateApiStatus() {
+  const el = document.getElementById('api-status');
+  if (!el) return;
+  if (GEMINI_KEY) {
+    el.innerHTML = `<div style="font-size:11px;color:var(--green);display:flex;align-items:center;gap:4px;margin-top:6px"><svg viewBox="0 0 24 24" fill="none" style="width:13px;height:13px;stroke:currentColor;stroke-width:2"><polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg>AI 功能已啟用</div>`;
+  } else {
+    el.innerHTML = `<div style="font-size:11px;color:var(--ink3);display:flex;align-items:center;gap:4px;margin-top:6px"><svg viewBox="0 0 24 24" fill="none" style="width:13px;height:13px;stroke:currentColor;stroke-width:2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01" stroke-linecap="round"/></svg>尚未設定，將使用示範內容</div>`;
+  }
+}
+
+function exportAllData() {
+  if (!entries.length) { showToast('還沒有遊記可以匯出'); return; }
+  const data = JSON.stringify(entries, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `旅行日誌備份_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  showToast(`已匯出 ${entries.length} 篇遊記`);
+}
+
+async function clearAllData() {
+  if (!confirm('確定要清除所有遊記資料？此操作無法復原。')) return;
+  entries = [];
+  if (db) {
+    try {
+      await clearAllEntriesFromDB();
+      showToast('資料已清除');
+      goPage('home');
+    } catch (err) {
+      console.error('Failed to clear database:', err);
+      showToast('清除失敗');
+    }
+  } else {
+    await save();
+    showToast('資料已清除');
+    goPage('home');
+  }
+}
+
+function triggerHtmlImport() {
+  document.getElementById('html-import-input').click();
+}
+
+function importHtmlEntry(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const htmlText = e.target.result;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, 'text/html');
+      const scriptEl = doc.getElementById('tj-raw-data');
+      if (!scriptEl) {
+        showToast('❌ 無效的遊記檔案（找不到隱藏的遊記數據）');
+        return;
+      }
+      
+      const entry = JSON.parse(scriptEl.textContent);
+      if (!entry || !entry.id) {
+        showToast('❌ 資料解析錯誤');
+        return;
+      }
+
+      const exists = entries.some(x => x.id === entry.id);
+      if (exists) {
+        if (!confirm(`此篇遊記（${entry.location} - ${entry.date}）已存在，是否覆蓋？`)) {
+          input.value = '';
+          return;
+        }
+        entries = entries.filter(x => x.id !== entry.id);
+      }
+
+      entries.push(entry);
+      await save(entry);
+      showToast('✅ 遊記匯入成功！');
+      goPage('home');
+    } catch (err) {
+      console.error('Import failed:', err);
+      showToast('❌ 匯入失敗，格式不相符');
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function triggerJsonImport() {
+  document.getElementById('json-import-input').click();
+}
+
+function importJsonData(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const importedEntries = JSON.parse(e.target.result);
+      if (!Array.isArray(importedEntries)) {
+        showToast('❌ 無效的備份格式');
+        return;
+      }
+
+      if (!confirm(`確定要匯入 ${importedEntries.length} 篇遊記？（若 ID 重複將自動覆蓋）`)) {
+        input.value = '';
+        return;
+      }
+
+      for (const entry of importedEntries) {
+        if (!entry.id) continue;
+        entries = entries.filter(x => x.id !== entry.id);
+        entries.push(entry);
+        await save(entry);
+      }
+
+      showToast(`✅ 成功匯入 ${importedEntries.length} 篇遊記！`);
+      goPage('home');
+    } catch (err) {
+      console.error('Import JSON failed:', err);
+      showToast('❌ 匯入失敗，檔案格式損毀');
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ── LIGHTBOX GESTURES ──
+let lightboxPhotos = [];
+let lightboxIndex = 0;
+let touchStartX = 0;
+let touchEndX = 0;
+
+function openLightbox(index) {
+  if (!currentEntry || !currentEntry.photos || !currentEntry.photos.length) return;
+  lightboxPhotos = currentEntry.photos;
+  lightboxIndex = index;
+  
+  const modal = document.getElementById('lightbox-modal');
+  if (!modal) return;
+  
+  updateLightboxContent();
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  const modal = document.getElementById('lightbox-modal');
+  if (modal) modal.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+function changeLightboxPhoto(dir) {
+  if (!lightboxPhotos.length) return;
+  lightboxIndex = (lightboxIndex + dir + lightboxPhotos.length) % lightboxPhotos.length;
+  updateLightboxContent();
+}
+
+function updateLightboxContent() {
+  const img = document.getElementById('lightbox-img');
+  const caption = document.getElementById('lightbox-caption');
+  if (img) {
+    img.src = lightboxPhotos[lightboxIndex];
+    img.style.opacity = 0;
+    img.style.transform = 'scale(0.96)';
+    setTimeout(() => {
+      img.style.opacity = 1;
+      img.style.transform = 'scale(1)';
+    }, 50);
+  }
+  if (caption) {
+    caption.textContent = `第 ${lightboxIndex + 1} / ${lightboxPhotos.length} 張照片`;
+  }
+}
+
+function initLightboxGestures() {
+  const modal = document.getElementById('lightbox-modal');
+  if (!modal) return;
+  
+  modal.addEventListener('touchstart', e => {
+    touchStartX = e.changedTouches[0].screenX;
+  }, { passive: true });
+  
+  modal.addEventListener('touchend', e => {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipeGesture();
+  }, { passive: true });
+}
+
+function handleSwipeGesture() {
+  const swipeThreshold = 50;
+  const diff = touchEndX - touchStartX;
+  if (Math.abs(diff) < swipeThreshold) return;
+  if (diff > 0) {
+    changeLightboxPhoto(-1);
+  } else {
+    changeLightboxPhoto(1);
+  }
+}
+
+// ── SEARCH & FILTER HELPERS ──
+function handleSearch() {
+  const val = document.getElementById('home-search').value;
+  searchQuery = val;
+  const clearEl = document.getElementById('search-clear');
+  if (clearEl) clearEl.style.display = val ? 'block' : 'none';
+  renderHome();
+}
+
+function clearSearch() {
+  const inp = document.getElementById('home-search');
+  if (inp) inp.value = '';
+  searchQuery = '';
+  const clearEl = document.getElementById('search-clear');
+  if (clearEl) clearEl.style.display = 'none';
+  renderHome();
+}
+
+function toggleTagFilter(tag) {
+  if (selectedFilterTag === tag) {
+    selectedFilterTag = '';
+  } else {
+    selectedFilterTag = tag;
+  }
+  renderHome();
+}
+
+function renderTagFilters() {
+  const tagFiltersEl = document.getElementById('tag-filters');
+  if (!tagFiltersEl) return;
+  if (!entries.length) {
+    tagFiltersEl.innerHTML = '';
+    return;
+  }
+  const tagCounts = {};
+  entries.forEach(e => {
+    if (e.tags) {
+      e.tags.split(/\s+/).filter(Boolean).forEach(tag => {
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      });
+    }
+  });
+  const topTags = Object.entries(tagCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(x => x[0]);
+  if (!topTags.length) {
+    tagFiltersEl.style.display = 'none';
+    return;
+  }
+  tagFiltersEl.style.display = 'flex';
+  let html = `<span class="chip ${!selectedFilterTag ? 'active' : ''}" onclick="toggleTagFilter('')" style="flex-shrink:0;padding:6px 12px;font-size:12px;margin:2px 0">全部</span>`;
+  topTags.forEach(tag => {
+    const isActive = selectedFilterTag === tag;
+    html += `<span class="chip ${isActive ? 'active' : ''}" onclick="toggleTagFilter('${tag}')" style="flex-shrink:0;padding:6px 12px;font-size:12px;margin:2px 0"># ${tag}</span>`;
+  });
+  tagFiltersEl.innerHTML = html;
+}
+
+// ── SHARE HASH CHECKER ──
+async function checkShareHash() {
+  if (window.location.hash.startsWith('#share=')) {
+    try {
+      const shareDataB64 = window.location.hash.substring('#share='.length);
+      const decodedEntry = await decodeShareData(shareDataB64);
+      if (decodedEntry) {
+        decodedEntry.isSharedView = true;
+        currentEntry = decodedEntry;
+        goPage('article');
+        renderArticle(decodedEntry);
+        return true;
+      }
+    } catch (err) {
+      console.error('Failed to parse shared entry from hash:', err);
+      showToast('❌ 無法載入分享的遊記，連結可能已損毀');
+    }
+  }
+  return false;
+}
+
+window.addEventListener('hashchange', async () => {
+  await checkShareHash();
+});
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await initDB();
+    const localData = localStorage.getItem('tj_entries');
+    if (localData) {
+      const localEntries = JSON.parse(localData);
+      if (localEntries && localEntries.length > 0) {
+        for (const entry of localEntries) {
+          await saveEntryToDB(entry);
+        }
+        console.log('Migrated entries from localStorage to IndexedDB');
+      }
+      localStorage.removeItem('tj_entries');
+    }
+    entries = await getEntriesFromDB();
+  } catch (err) {
+    console.error('Failed to initialize database:', err);
+    showToast('資料庫載入失敗，使用瀏覽器暫存');
+    entries = JSON.parse(localStorage.getItem('tj_entries') || '[]');
+  }
+  
+  const hasShare = await checkShareHash();
+  if (!hasShare) {
+    renderHome();
+  }
+  
+  initLightboxGestures();
+  
+  // PWA SW
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(err => {
+      console.warn('Service Worker registration failed:', err);
+    });
+  }
+});
+</script>
+</body>
+</html>
